@@ -1,0 +1,6 @@
+.cache/
+.xmake/
+build/
+HW2/benchmark_results.csv
+HW2/diag.png
+compile_commands.json
