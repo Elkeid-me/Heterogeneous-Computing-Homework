@@ -1,26 +1,21 @@
 set_optimize("fastest")
 set_languages("cxx23")
 set_warnings("all", "extra")
+set_encodings("utf-8")
 add_rules("plugin.compile_commands.autoupdate")
 
-target("homework-2-1")
+local function add_intel_opencl()
+    add_includedirs("C:\\Program Files (x86)\\Intel\\oneAPI\\compiler\\latest\\include")
+    add_linkdirs("C:\\Program Files (x86)\\Intel\\oneAPI\\compiler\\latest\\lib")
+    add_links("OpenCL")
+end
+
+target("homework-1")
     set_kind("binary")
     add_files("src/HW-1.cxx")
-    add_links("OpenCL")
+    add_intel_opencl()
 
-    if is_plat("windows") then
-        add_includedirs("C:\\Program Files (x86)\\Intel\\oneAPI\\compiler\\latest\\include")
-        add_linkdirs("C:\\Program Files (x86)\\Intel\\oneAPI\\compiler\\latest\\lib")
-        set_encodings("utf-8") -- MSVC特色
-    end
-
-target("homework-2-2")
+target("homework-2")
     set_kind("binary")
     add_files("src/HW-2.cxx")
-    add_links("OpenCL")
-
-    if is_plat("windows") then
-        add_includedirs("C:\\Program Files (x86)\\Intel\\oneAPI\\compiler\\latest\\include")
-        add_linkdirs("C:\\Program Files (x86)\\Intel\\oneAPI\\compiler\\latest\\lib")
-        set_encodings("utf-8")
-    end
+    add_intel_opencl()
