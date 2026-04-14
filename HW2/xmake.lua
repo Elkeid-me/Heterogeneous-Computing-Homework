@@ -5,7 +5,7 @@ add_rules("plugin.compile_commands.autoupdate")
 
 target("homework-2-1")
     set_kind("binary")
-    add_files("HW2/src/HW-1.cxx")
+    add_files("src/HW-1.cxx")
     add_links("OpenCL")
 
     if is_plat("windows") then
@@ -16,7 +16,7 @@ target("homework-2-1")
 
 target("homework-2-2")
     set_kind("binary")
-    add_files("HW2/src/HW-2.cxx")
+    add_files("src/HW-2.cxx")
     add_links("OpenCL")
 
     if is_plat("windows") then
