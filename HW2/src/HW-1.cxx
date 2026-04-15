@@ -57,11 +57,11 @@ int main()
         cl_uint device_count;
         // https://registry.khronos.org/OpenCL/sdk/3.0/docs/man/html/clGetDeviceIDs.html
         clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, nullptr,
-                        &device_count);
+                       &device_count);
 
         auto devices{std::make_unique<cl_device_id[]>(device_count)};
         clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, device_count,
-                             devices.get(), nullptr);
+                       devices.get(), nullptr);
 
         for (cl_uint j{0}; j < device_count; j++)
         {
