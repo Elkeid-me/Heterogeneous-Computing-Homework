@@ -1,4 +1,4 @@
-let results_file = "benchmark_results.csv"
+let results_file = "benchmark_results_opencl.csv"
 
 if ($results_file | path exists) {
     rm $results_file
@@ -26,4 +26,4 @@ def benchmark [len: int] {
 
 $vec_len | each {|item| benchmark $item } | ignore
 
-# wolframscript -f data-process.wls
+wolframscript -f data-process.wls

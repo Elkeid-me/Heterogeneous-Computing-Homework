@@ -8,13 +8,13 @@ let vec_len = [1024 2048 4096 8192]
 
 def benchmark [len: int] {
     let $simple_result = 1..10 | each { |item|
-        let result = ./build/windows/x64/release/matrix-mul $len --benchmark | lines
+        let result = xmake r matrix-mul $len --benchmark | lines
         let float_time = $result.0 | into int
         let double_time = $result.1 | into int
         {float: $float_time, double: $double_time}
     }
     let $tiled_result = 1..10 | each { |item|
-        let result = ./build/windows/x64/release/matrix-mul-optimized $len --benchmark | lines
+        let result = xmake r matrix-mul-optimized $len --benchmark | lines
         let float_time = $result.0 | into int
         let double_time = $result.1 | into int
         {float: $float_time, double: $double_time}

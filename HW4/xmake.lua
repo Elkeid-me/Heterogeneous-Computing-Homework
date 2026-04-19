@@ -10,18 +10,12 @@ local function add_intel_opencl()
     add_links("OpenCL")
 end
 
-local function add_intel_sycl()
-    add_intel_opencl()
-    add_cxxflags("-fsycl")
-    add_links("sycl")
-end
-
 target("matrix-mul")
     set_kind("binary")
     add_files("src/matrix-mul.cxx")
     add_intel_opencl()
 
-target("sycl-matrix-mul")
+target("cuda-matrix-mul")
     set_kind("binary")
-    add_files("src/sycl-matrix-mul.cxx")
-    add_intel_sycl()
+    add_rules("cuda")
+    add_files("src/cuda-matrix-mul.cu")

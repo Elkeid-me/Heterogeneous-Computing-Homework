@@ -1,6 +1,7 @@
 .cache/
+.vscode/
 .xmake/
 build/
-benchmark_results.csv
-diag*.png
+*.csv
+*.png
 compile_commands.json
