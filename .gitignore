@@ -2,5 +2,5 @@
 .xmake/
 build/
 benchmark_results.csv
-diag.png
+diag*.png
 compile_commands.json
