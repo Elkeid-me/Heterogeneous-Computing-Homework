@@ -25,5 +25,3 @@ def benchmark [len: int] {
 }
 
 $vec_len | each {|item| benchmark $item } | ignore
-
-wolframscript -f data-process.wls

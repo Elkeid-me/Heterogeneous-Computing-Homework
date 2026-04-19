@@ -12,7 +12,7 @@ plot = ListLinePlot[{intData, longData, floatData, doubleData},
 
 Export["diag.png", plot]
 
-data = lg /@ Import["benchmark_results.csv"]
+data = lg /@ Import["benchmark_results_sycl_cuda.csv"]
 
 syclInt = data[[All, {1, 2}]]
 syclFloat = data[[All, {1, 3}]]
