@@ -3,7 +3,9 @@
 .xmake/
 build/
 HW5/Rotate-Bmp/
+*.7z
 *.bmp
 *.csv
+*.pdf
 *.png
 compile_commands.json
