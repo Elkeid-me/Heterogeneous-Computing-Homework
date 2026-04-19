@@ -1,6 +1,6 @@
 .cache/
 .xmake/
 build/
-HW2/benchmark_results.csv
-HW2/diag.png
+benchmark_results.csv
+diag.png
 compile_commands.json

@@ -5,6 +5,9 @@ cpuData = data[[All, {1, 2}]]
 gpuData = data[[All, {1, 3}]]
 ratio = Transpose[{data[[All, 1]], data[[All, 2]] - data[[All, 3]]}]
 
-plot = ListLinePlot[{cpuData, gpuData, ratio}, PlotRange -> All]
+plot = ListLinePlot[{cpuData, gpuData, ratio},
+                    PlotRange -> All,
+                    PlotLegends -> {"CPU", "GPU", "Ratio"},
+                    AxesLabel -> {"lg (Vector Length)", "lg (Time)"}]
 
 Export["diag.png", plot]
