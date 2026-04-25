@@ -4,12 +4,6 @@ set_warnings("all", "extra")
 set_encodings("utf-8")
 add_rules("plugin.compile_commands.autoupdate")
 
-local function add_intel_opencl()
-    add_includedirs("C:\\Program Files (x86)\\Intel\\oneAPI\\compiler\\latest\\include")
-    add_linkdirs("C:\\Program Files (x86)\\Intel\\oneAPI\\compiler\\latest\\lib")
-    add_links("OpenCL")
-end
-
 rule("rotate_image")
     on_build(function (target)
         local fs_path = path.join(os.projectdir(), "RotateImage",
@@ -33,8 +27,9 @@ target("rotate_image_opencl")
     set_kind("shared")
     add_defines("ROTATE_IMAGE_OPENCL_EXPORTS")
     add_files("src/rotate_image_opencl.cxx")
-    add_includedirs(path.join(os.projectdir(), "..", "base"))
+    includes("../xmake/opencl.lua")
     add_intel_opencl()
+    add_includedirs("../base")
     after_build(function (target)
         local release_dir = path.join(os.projectdir(), "Release")
         os.cp(target:targetfile(), release_dir)
