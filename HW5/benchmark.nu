@@ -4,17 +4,27 @@ if ($results_file | path exists) {
     rm $results_file
 }
 
-let input = $env.PWD | path join "Libbie-front.bmp"
-let output = $env.PWD | path join "Libbie-front-rotated.bmp"
-let result = 1..10 | each { |item|
-    let opencl_time = timeit { xmake r bmp-rotate-opencl $input $output 60 | ignore }
-    let cpu_open_cl_time = timeit { xmake r bmp-rotate-cpu-opencl $input $output 60 | ignore }
-    {opencl: $opencl_time, cpu_open_cl: $cpu_open_cl_time}
+let root = $env.PWD
+
+def bench_one [input output] {
+    let opencl_times = 1..10 | each {
+        ./Rotate.exe -i $input -o $output -d 60 -e opencl | into float
+    }
+    let cpu_times = 1..10 | each {
+        ./Rotate.exe -i $input -o $output -d 60 -e cpu | into float
+    }
+
+    {
+        input: $input,
+        opencl_ms: (($opencl_times | math avg)),
+        cpu_ms: (($cpu_times | math avg)),
+    }
 }
-let opencl_time = $result.opencl | math avg
-let cpu_opencl_time = $result.cpu_open_cl | math avg
-print $"OpenCL Time: ($opencl_time), CPU Time: ($cpu_opencl_time)"
-let opencl_time_ms = $opencl_time / 1ms
-let cpu_opencl_time_ms = $cpu_opencl_time / 1ms
-let result_str = $"($opencl_time_ms), ($cpu_opencl_time_ms)\n"
-$result_str | save --append $results_file
+
+let results = [
+    (bench_one ($root | path join "Libbie-Front.png") ($root | path join "Libbie-Front-Rotated.png"))
+    (bench_one ($root | path join "Microsoft-Wallpaper.png") ($root | path join "Microsoft-Wallpaper-Rotated.png"))
+]
+
+$results | to csv | save -f $results_file
+print $"Benchmark results saved to ($results_file)"
