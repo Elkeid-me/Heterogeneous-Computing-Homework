@@ -1,15 +1,10 @@
-#define CL_TARGET_OPENCL_VERSION 300
-
 #include "base.hxx"
-#include <CL/cl.h>
 #include <charconv>
 #include <chrono>
 #include <cstddef>
 #include <cstring>
 #include <iostream>
-#include <memory>
 #include <ratio>
-#include <span>
 #include <vector>
 
 const char *kernel_source = R"(
@@ -58,18 +53,7 @@ int main(int argc, char *argv[])
     auto end_cpu{std::chrono::high_resolution_clock::now()};
     std::chrono::duration<double, unit> cpu_time{end_cpu - start_cpu};
 
-    cl_device_id device;
-    cl_uint platform_count;
-    clGetPlatformIDs(0, nullptr, &platform_count);
-    auto platforms{std::make_unique<cl_platform_id[]>(platform_count)};
-    clGetPlatformIDs(platform_count, platforms.get(), nullptr);
-    std::span<cl_platform_id> platform_span(platforms.get(), platform_count);
-    for (auto platform : platform_span)
-    {
-        if (clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, nullptr) ==
-            CL_SUCCESS)
-            break;
-    }
+    cl_device_id device{get_device()};
 
     cl_handler<cl_context> context(
         clCreateContext(nullptr, 1, &device, nullptr, nullptr, nullptr),

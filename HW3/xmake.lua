@@ -10,9 +10,9 @@ add_includedirs("../base")
 
 target("matrix-mul")
     set_kind("binary")
-    add_files("src/matrix-mul.cxx")
+    add_files("src/matrix-mul.cxx", "../base/base.cxx")
 
 target("matrix-mul-optimized")
     set_kind("binary")
-    add_files("src/matrix-mul-optimized.cxx")
+    add_files("src/matrix-mul-optimized.cxx", "../base/base.cxx")
 

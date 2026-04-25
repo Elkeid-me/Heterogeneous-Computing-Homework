@@ -1,5 +1,7 @@
 #ifndef OPENCL_HANDLER_HXX
 #define OPENCL_HANDLER_HXX
+#define CL_TARGET_OPENCL_VERSION 300
+#include <CL/cl.h>
 #include <utility>
 
 template <typename H>
@@ -38,4 +40,7 @@ private:
     H m_handler{nullptr};
     deleter m_deleter{nullptr};
 };
+
+cl_device_id get_device();
+
 #endif // OPENCL_HANDLER_HXX

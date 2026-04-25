@@ -1,15 +1,10 @@
-#define CL_TARGET_OPENCL_VERSION 300
-
 #include "base.hxx"
-#include <CL/cl.h>
 #include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
-#include <memory>
 #include <numbers>
-#include <span>
 
 #if defined(_WIN32)
 #define ROTATE_IMAGE_OPENCL_API __declspec(dllexport)
@@ -44,41 +39,6 @@ __kernel void rotate_image(__read_only image2d_t src_img,
     write_imagef(dst_img, (int2)(x, y), value);
 }
 )"};
-}
-// template <typename H>
-// using cl_handler =
-//     std::unique_ptr<std::remove_reference_t<decltype(*std::declval<H>())>,
-//                     cl_int (*)(H)>;
-
-cl_device_id pick_device()
-{
-    cl_uint platform_count{0};
-    if (clGetPlatformIDs(0, nullptr, &platform_count) != CL_SUCCESS ||
-        platform_count == 0)
-        return nullptr;
-
-    auto platforms = std::make_unique<cl_platform_id[]>(platform_count);
-    std::span<cl_platform_id> platforms_span{platforms.get(), platform_count};
-
-    if (clGetPlatformIDs(platform_count, platforms.get(), nullptr) !=
-        CL_SUCCESS)
-        return nullptr;
-
-    for (cl_platform_id platform : platforms_span)
-    {
-        cl_device_id device{nullptr};
-        if (clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, nullptr) ==
-            CL_SUCCESS)
-            return device;
-    }
-    for (cl_platform_id platform : platforms_span)
-    {
-        cl_device_id device{nullptr};
-        if (clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 1, &device, nullptr) ==
-            CL_SUCCESS)
-            return device;
-    }
-    return nullptr;
 }
 
 extern "C" ROTATE_IMAGE_OPENCL_API void rotate_image_cpu(std::uint32_t *src_ptr,
@@ -121,7 +81,7 @@ rotate_image_opencl(std::uint32_t *src_ptr, std::uint32_t *dst_ptr, int width,
 
     const std::size_t width_size{static_cast<std::size_t>(width)};
     const std::size_t height_size{static_cast<std::size_t>(height)};
-    cl_device_id device{pick_device()};
+    cl_device_id device{get_device()};
     cl_handler<cl_context> context(
         clCreateContext(nullptr, 1, &device, nullptr, nullptr, nullptr),
         clReleaseContext);

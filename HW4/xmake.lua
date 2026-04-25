@@ -9,7 +9,7 @@ target("matrix-mul")
     includes("../xmake/opencl.lua")
     add_intel_opencl()
     add_includedirs("../base")
-    add_files("src/matrix-mul.cxx")
+    add_files("src/matrix-mul.cxx", "../base/base.cxx")
 
 if is_plat("linux") then
     target("cuda-matrix-mul")

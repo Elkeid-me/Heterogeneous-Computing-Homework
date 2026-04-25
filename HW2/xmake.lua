@@ -13,5 +13,5 @@ target("homework-1")
 
 target("homework-2")
     set_kind("binary")
-    add_files("src/HW-2.cxx")
+    add_files("src/HW-2.cxx", "../base/base.cxx")
     add_includedirs("../base")
