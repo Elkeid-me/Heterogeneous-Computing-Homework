@@ -1,6 +1,8 @@
 #ifndef OPENCL_HANDLER_HXX
 #define OPENCL_HANDLER_HXX
+#ifndef CL_TARGET_OPENCL_VERSION
 #define CL_TARGET_OPENCL_VERSION 300
+#endif
 #include <CL/cl.h>
 #include <utility>
 
@@ -29,12 +31,21 @@ public:
         std::swap(m_deleter, other.m_deleter);
         return *this;
     }
-
+    cl_handler &operator=(H handler)
+    {
+        reset(handler);
+        return *this;
+    }
     H get() const { return m_handler; }
     H *get_ptr() { return &m_handler; }
     explicit operator bool() const { return m_handler != nullptr; }
-    // operator H() const { return m_handler; }
     cl_handler *operator&() = delete;
+    void reset(H handler = nullptr)
+    {
+        if (m_handler && m_deleter)
+            m_deleter(m_handler);
+        m_handler = handler;
+    }
 
 private:
     H m_handler{nullptr};
