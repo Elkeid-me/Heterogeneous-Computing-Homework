@@ -10,13 +10,7 @@ local function add_intel_opencl()
     add_links("OpenCL")
 end
 
-target("matrix-mul")
+target("rotate_image_opencl")
     set_kind("binary")
-    add_files("src/matrix-mul.cxx")
-    add_includedirs(path.join(os.projectdir(), "..", "base"))
+    add_files("src/rotate_image_opencl.cxx")
     add_intel_opencl()
-
-target("cuda-matrix-mul")
-    set_kind("binary")
-    add_rules("cuda")
-    add_files("src/cuda-matrix-mul.cu")

@@ -13,9 +13,11 @@ end
 target("matrix-mul")
     set_kind("binary")
     add_files("src/matrix-mul.cxx")
+    add_includedirs(path.join(os.projectdir(), "..", "base"))
     add_intel_opencl()
 
 target("matrix-mul-optimized")
     set_kind("binary")
     add_files("src/matrix-mul-optimized.cxx")
+    add_includedirs(path.join(os.projectdir(), "..", "base"))
     add_intel_opencl()

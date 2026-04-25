@@ -1,5 +1,6 @@
 #define CL_TARGET_OPENCL_VERSION 300
 
+#include "base.hxx"
 #include <CL/cl.h>
 #include <charconv>
 #include <chrono>
@@ -8,6 +9,7 @@
 #include <iostream>
 #include <memory>
 #include <ratio>
+#include <span>
 #include <vector>
 
 const char *kernel_source = R"(
@@ -61,48 +63,58 @@ int main(int argc, char *argv[])
     clGetPlatformIDs(0, nullptr, &platform_count);
     auto platforms{std::make_unique<cl_platform_id[]>(platform_count)};
     clGetPlatformIDs(platform_count, platforms.get(), nullptr);
-    for (cl_uint i{0}; i < platform_count; i++)
+    std::span<cl_platform_id> platform_span(platforms.get(), platform_count);
+    for (auto platform : platform_span)
     {
-        if (clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_GPU, 1, &device,
-                           nullptr) == CL_SUCCESS)
+        if (clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, nullptr) ==
+            CL_SUCCESS)
             break;
     }
 
-    cl_context context{
-        clCreateContext(nullptr, 1, &device, nullptr, nullptr, nullptr)};
-    cl_command_queue queue{
-        clCreateCommandQueueWithProperties(context, device, nullptr, nullptr)};
+    cl_handler<cl_context> context(
+        clCreateContext(nullptr, 1, &device, nullptr, nullptr, nullptr),
+        clReleaseContext);
+    cl_handler<cl_command_queue> queue(
+        clCreateCommandQueueWithProperties(context.get(), device, nullptr,
+                                           nullptr),
+        clReleaseCommandQueue);
 
-    cl_mem gpu_A{
-        clCreateBuffer(context, CL_MEM_READ_ONLY, size, nullptr, nullptr)};
-    cl_mem gpu_B{
-        clCreateBuffer(context, CL_MEM_READ_ONLY, size, nullptr, nullptr)};
-    cl_mem gpu_C{
-        clCreateBuffer(context, CL_MEM_WRITE_ONLY, size, nullptr, nullptr)};
+    cl_handler<cl_mem> gpu_A(
+        clCreateBuffer(context.get(), CL_MEM_READ_ONLY, size, nullptr, nullptr),
+        clReleaseMemObject);
+    cl_handler<cl_mem> gpu_B(
+        clCreateBuffer(context.get(), CL_MEM_READ_ONLY, size, nullptr, nullptr),
+        clReleaseMemObject);
+    cl_handler<cl_mem> gpu_C(clCreateBuffer(context.get(), CL_MEM_WRITE_ONLY,
+                                            size, nullptr, nullptr),
+                             clReleaseMemObject);
 
-    clEnqueueWriteBuffer(queue, gpu_A, CL_TRUE, 0, size, h_A.data(), 0, nullptr,
-                         nullptr);
-    clEnqueueWriteBuffer(queue, gpu_B, CL_TRUE, 0, size, h_B.data(), 0, nullptr,
-                         nullptr);
-    clFinish(queue);
-    cl_program program{clCreateProgramWithSource(context, 1, &kernel_source,
-                                                 nullptr, nullptr)};
-    clBuildProgram(program, 1, &device, nullptr, nullptr, nullptr);
-    cl_kernel kernel{clCreateKernel(program, "vector_add", nullptr)};
+    clEnqueueWriteBuffer(queue.get(), gpu_A.get(), CL_TRUE, 0, size, h_A.data(),
+                         0, nullptr, nullptr);
+    clEnqueueWriteBuffer(queue.get(), gpu_B.get(), CL_TRUE, 0, size, h_B.data(),
+                         0, nullptr, nullptr);
+    clFinish(queue.get());
+    cl_handler<cl_program> program(clCreateProgramWithSource(context.get(), 1,
+                                                             &kernel_source,
+                                                             nullptr, nullptr),
+                                   clReleaseProgram);
+    clBuildProgram(program.get(), 1, &device, nullptr, nullptr, nullptr);
+    cl_handler<cl_kernel> kernel(
+        clCreateKernel(program.get(), "vector_add", nullptr), clReleaseKernel);
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &gpu_A);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &gpu_B);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &gpu_C);
+    clSetKernelArg(kernel.get(), 0, sizeof(cl_mem), gpu_A.get_ptr());
+    clSetKernelArg(kernel.get(), 1, sizeof(cl_mem), gpu_B.get_ptr());
+    clSetKernelArg(kernel.get(), 2, sizeof(cl_mem), gpu_C.get_ptr());
 
     auto start_opencl{std::chrono::high_resolution_clock::now()};
     const std::size_t global_size{N};
-    clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, &global_size, nullptr, 0,
-                           nullptr, nullptr);
-    clFinish(queue);
+    clEnqueueNDRangeKernel(queue.get(), kernel.get(), 1, nullptr, &global_size,
+                           nullptr, 0, nullptr, nullptr);
+    clFinish(queue.get());
     auto end_opencl{std::chrono::high_resolution_clock::now()};
     std::chrono::duration<double, unit> opencl_time{end_opencl - start_opencl};
-    clEnqueueReadBuffer(queue, gpu_C, CL_TRUE, 0, size, h_C_GPU.data(), 0,
-                        nullptr, nullptr);
+    clEnqueueReadBuffer(queue.get(), gpu_C.get(), CL_TRUE, 0, size,
+                        h_C_GPU.data(), 0, nullptr, nullptr);
 
     bool success{true};
     for (std::size_t i{0}; i < N; i++)
@@ -132,14 +144,6 @@ int main(int argc, char *argv[])
     }
     else
         std::cout << "Results do NOT match!" << std::endl;
-
-    clReleaseMemObject(gpu_A);
-    clReleaseMemObject(gpu_B);
-    clReleaseMemObject(gpu_C);
-    clReleaseKernel(kernel);
-    clReleaseProgram(program);
-    clReleaseCommandQueue(queue);
-    clReleaseContext(context);
 
     return 0;
 }

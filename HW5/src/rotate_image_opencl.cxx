@@ -1,7 +1,7 @@
 #define CL_TARGET_OPENCL_VERSION 300
 
+#include "base.hxx"
 #include <CL/cl.h>
-
 #include <chrono>
 #include <cmath>
 #include <cstddef>
@@ -45,10 +45,10 @@ __kernel void rotate_image(__read_only image2d_t src_img,
 }
 )"};
 }
-template <typename H>
-using cl_handler =
-    std::unique_ptr<std::remove_reference_t<decltype(*std::declval<H>())>,
-                    cl_int (*)(H)>;
+// template <typename H>
+// using cl_handler =
+//     std::unique_ptr<std::remove_reference_t<decltype(*std::declval<H>())>,
+//                     cl_int (*)(H)>;
 
 cl_device_id pick_device()
 {
@@ -159,10 +159,8 @@ rotate_image_opencl(std::uint32_t *src_ptr, std::uint32_t *dst_ptr, int width,
                                  clReleaseMemObject};
 
     const float radians{degrees * std::numbers::pi_v<float> / 180.0f};
-    cl_mem src_mem{src_image.get()};
-    cl_mem dst_mem{dst_image.get()};
-    clSetKernelArg(kernel.get(), 0, sizeof(cl_mem), &src_mem);
-    clSetKernelArg(kernel.get(), 1, sizeof(cl_mem), &dst_mem);
+    clSetKernelArg(kernel.get(), 0, sizeof(cl_mem), src_image.get_ptr());
+    clSetKernelArg(kernel.get(), 1, sizeof(cl_mem), dst_image.get_ptr());
     clSetKernelArg(kernel.get(), 2, sizeof(float), &radians);
     clFinish(queue.get());
     auto start{std::chrono::high_resolution_clock::now()};
