@@ -86,10 +86,8 @@ int main(int argc, char *argv[])
     cl_handler<cl_kernel> kernel(
         clCreateKernel(program.get(), "vector_add", nullptr), clReleaseKernel);
 
-    clSetKernelArg(kernel.get(), 0, sizeof(cl_mem), gpu_A.get_ptr());
-    clSetKernelArg(kernel.get(), 1, sizeof(cl_mem), gpu_B.get_ptr());
-    clSetKernelArg(kernel.get(), 2, sizeof(cl_mem), gpu_C.get_ptr());
-
+    set_kernel_args(kernel.get(), gpu_A.get_ptr(), gpu_B.get_ptr(),
+                    gpu_C.get_ptr());
     auto start_opencl{std::chrono::high_resolution_clock::now()};
     const std::size_t global_size{N};
     clEnqueueNDRangeKernel(queue.get(), kernel.get(), 1, nullptr, &global_size,

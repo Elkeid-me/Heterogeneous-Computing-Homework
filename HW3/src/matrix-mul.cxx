@@ -81,10 +81,8 @@ std::chrono::duration<double, std::milli> test(std::size_t n)
         clReleaseKernel);
 
     const cl_uint width{static_cast<cl_uint>(n)};
-    clSetKernelArg(kernel.get(), 0, sizeof(cl_mem), gpu_o.get_ptr());
-    clSetKernelArg(kernel.get(), 1, sizeof(cl_mem), gpu_a.get_ptr());
-    clSetKernelArg(kernel.get(), 2, sizeof(cl_mem), gpu_b.get_ptr());
-    clSetKernelArg(kernel.get(), 3, sizeof(cl_uint), &width);
+    set_kernel_args(kernel.get(), gpu_o.get_ptr(), gpu_a.get_ptr(),
+                    gpu_b.get_ptr(), &width);
 
     std::size_t global_size[2]{n, n};
     auto start{std::chrono::high_resolution_clock::now()};

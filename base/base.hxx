@@ -54,4 +54,17 @@ private:
 
 cl_device_id get_device();
 
+template <typename... Args, std::size_t... Is>
+void set_kernel_args_impl(cl_kernel kernel, std::index_sequence<Is...>,
+                      Args... args)
+{
+    (clSetKernelArg(kernel, Is, sizeof(decltype(*args)), args), ...);
+}
+
+template <typename... Args>
+void set_kernel_args(cl_kernel kernel, Args... args)
+{
+    set_kernel_args_impl(kernel, std::index_sequence_for<Args...>{}, args...);
+}
+
 #endif // OPENCL_HANDLER_HXX

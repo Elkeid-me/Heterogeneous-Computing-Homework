@@ -41,7 +41,7 @@ int main()
                        sizeof(std::int32_t) * ELE_NUMS, nullptr, nullptr),
         clRetainMemObject);
     cl_handler<cl_mem> destMemObj(
-        clCreateBuffer(context.get(), CL_MEM_READ_ONLY,
+        clCreateBuffer(context.get(), CL_MEM_READ_WRITE,
                        sizeof(std::int32_t) * ELE_NUMS, nullptr, nullptr),
         clRetainMemObject);
     const char *kernelSource{KERNEL_SOURCE};
@@ -63,9 +63,8 @@ int main()
     cl_handler<cl_kernel> kernel(
         clCreateKernel(program.get(), "kernel1_test", nullptr),
         clReleaseKernel);
-    clSetKernelArg(kernel.get(), 0, sizeof(cl_mem), destMemObj.get_ptr());
-    clSetKernelArg(kernel.get(), 1, sizeof(cl_mem), src1MemObj.get_ptr());
-    clSetKernelArg(kernel.get(), 2, sizeof(cl_mem), src2MemObj.get_ptr());
+    set_kernel_args(kernel.get(), destMemObj.get_ptr(), src1MemObj.get_ptr(),
+                    src2MemObj.get_ptr());
     std::size_t maxWorkGroupSize = 0;
     clGetDeviceInfo(device_id, CL_DEVICE_MAX_WORK_GROUP_SIZE,
                     sizeof(maxWorkGroupSize), &maxWorkGroupSize, nullptr);
@@ -81,9 +80,8 @@ int main()
     cl_handler<cl_kernel> kernel2(
         clCreateKernel(program.get(), "kernel2_test", nullptr),
         clReleaseKernel);
-    clSetKernelArg(kernel2.get(), 0, sizeof(cl_mem), destMemObj.get_ptr());
-    clSetKernelArg(kernel2.get(), 1, sizeof(cl_mem), src1MemObj.get_ptr());
-    clSetKernelArg(kernel2.get(), 2, sizeof(cl_mem), src2MemObj.get_ptr());
+    set_kernel_args(kernel2.get(), destMemObj.get_ptr(), src1MemObj.get_ptr(),
+                    src2MemObj.get_ptr());
     clEnqueueNDRangeKernel(command_queue.get(), kernel2.get(), 1, nullptr,
                            &ELE_NUMS, &maxWorkGroupSize, 1, events[0].get_ptr(),
                            events[1].get_ptr());
@@ -102,6 +100,6 @@ int main()
             return EXIT_FAILURE;
         }
     }
-    std::cout << "Test passed.\n";
+    std::cout << "Result is OK!" << std::endl;
     return 0;
 }

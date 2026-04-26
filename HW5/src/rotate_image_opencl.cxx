@@ -119,9 +119,8 @@ rotate_image_opencl(std::uint32_t *src_ptr, std::uint32_t *dst_ptr, int width,
                                  clReleaseMemObject};
 
     const float radians{degrees * std::numbers::pi_v<float> / 180.0f};
-    clSetKernelArg(kernel.get(), 0, sizeof(cl_mem), src_image.get_ptr());
-    clSetKernelArg(kernel.get(), 1, sizeof(cl_mem), dst_image.get_ptr());
-    clSetKernelArg(kernel.get(), 2, sizeof(float), &radians);
+    set_kernel_args(kernel.get(), src_image.get_ptr(), dst_image.get_ptr(),
+                    &radians);
     clFinish(queue.get());
     auto start{std::chrono::high_resolution_clock::now()};
     const std::size_t global_size[2]{width_size, height_size};
