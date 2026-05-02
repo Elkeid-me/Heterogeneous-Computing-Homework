@@ -6,29 +6,43 @@
 #include <CL/cl.h>
 #include <utility>
 
+template <typename T>
+void __destroy(T obj);
+
+#define __DEFINE_DELETER(TYPE, RELEASE_FUNC)                                   \
+    template <>                                                                \
+    void __destroy(TYPE obj)                                                   \
+    {                                                                          \
+        RELEASE_FUNC(obj);                                                     \
+    }
+
+__DEFINE_DELETER(cl_context, clReleaseContext);
+__DEFINE_DELETER(cl_command_queue, clReleaseCommandQueue);
+__DEFINE_DELETER(cl_mem, clReleaseMemObject);
+__DEFINE_DELETER(cl_program, clReleaseProgram);
+__DEFINE_DELETER(cl_kernel, clReleaseKernel);
+__DEFINE_DELETER(cl_event, clReleaseEvent);
+
 template <typename H>
 class cl_handler
 {
 public:
-    using deleter = int (*)(H);
     cl_handler() = default;
-    cl_handler(H handler, deleter del) : m_handler{handler}, m_deleter{del} {}
+    cl_handler(H handler) : m_handler{handler} {}
     ~cl_handler()
     {
-        if (m_handler && m_deleter)
-            m_deleter(m_handler);
+        if (m_handler)
+            __destroy<H>(m_handler);
     }
     cl_handler(const cl_handler &) = delete;
     cl_handler &operator=(const cl_handler &) = delete;
     cl_handler(cl_handler &&other) noexcept
     {
         std::swap(m_handler, other.m_handler);
-        std::swap(m_deleter, other.m_deleter);
     }
     cl_handler &operator=(cl_handler &&other) noexcept
     {
         std::swap(m_handler, other.m_handler);
-        std::swap(m_deleter, other.m_deleter);
         return *this;
     }
     cl_handler &operator=(H handler)
@@ -42,21 +56,20 @@ public:
     cl_handler *operator&() = delete;
     void reset(H handler = nullptr)
     {
-        if (m_handler && m_deleter)
-            m_deleter(m_handler);
+        if (m_handler)
+            __destroy<H>(m_handler);
         m_handler = handler;
     }
 
 private:
     H m_handler{nullptr};
-    deleter m_deleter{nullptr};
 };
 
 cl_device_id get_device();
 
 template <typename... Args, std::size_t... Is>
 void set_kernel_args_impl(cl_kernel kernel, std::index_sequence<Is...>,
-                      Args... args)
+                          Args... args)
 {
     (clSetKernelArg(kernel, Is, sizeof(decltype(*args)), args), ...);
 }

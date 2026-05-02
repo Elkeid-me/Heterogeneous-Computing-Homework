@@ -7,67 +7,61 @@
 #include <ratio>
 #include <vector>
 
-#define MATRIX_MUL_KERNEL(TYPE)                                                \
-    "__kernel void multMatrixTiled("                                           \
-    "__global " #TYPE " *mO, __global const " #TYPE " *mA,"                    \
-    "__global const " #TYPE " *mB, const uint width) {"                        \
-    "const uint gx = get_global_id(0);"                                        \
-    "const uint gy = get_global_id(1);"                                        \
-    "const uint lx = get_local_id(0);"                                         \
-    "const uint ly = get_local_id(1);"                                         \
-    "const uint group_x = get_group_id(0);"                                    \
-    "const uint group_y = get_group_id(1);"                                    \
-    "const uint local_size_x = get_local_size(0);"                             \
-    "const uint local_size_y = get_local_size(1);"                             \
-    ""                                                                         \
-    "__local " #TYPE " tileA[16][16];"                                         \
-    "__local " #TYPE " tileB[16][16];"                                         \
-    ""                                                                         \
-    "" #TYPE " sum = 0.0f;"                                                    \
-    "const uint tiled_k = (width + local_size_x - 1) / local_size_x;"          \
-    "for (uint t = 0; t < tiled_k; ++t) {"                                     \
-    "const uint a_col = t * local_size_x + lx;"                                \
-    "const uint a_row = group_y * local_size_y + ly;"                          \
-    "const uint b_row = t * local_size_y + ly;"                                \
-    "const uint b_col = group_x * local_size_x + lx;"                          \
-    "tileA[ly][lx] ="                                                          \
-    "(a_row < width && a_col < width) ? mA[a_row * width + a_col] : 0.0f;"     \
-    "tileB[ly][lx] ="                                                          \
-    "(b_row < width && b_col < width) ? mB[b_row * width + b_col] : 0.0f;"     \
-    "barrier(CLK_LOCAL_MEM_FENCE);"                                            \
-    ""                                                                         \
-    "for (uint k = 0; k < local_size_x; ++k)"                                  \
-    "sum += tileA[ly][k] * tileB[k][lx];"                                      \
-    "barrier(CLK_LOCAL_MEM_FENCE);"                                            \
-    "}"                                                                        \
-    "if (gy < width && gx < width)"                                            \
-    "mO[gy * width + gx] = sum;"                                               \
+constexpr cl_uint TILE_SIZE{16};
+
+#define KERNEL_SOURCE(TYPE, TILE_SIZE)                                         \
+    "__kernel void mul_matrix_tiled(__global " #TYPE " *output,\n"             \
+    "                               __global const " #TYPE " *input_a,\n"      \
+    "                               __global const " #TYPE " *input_b,\n"      \
+    "                               const uint width)\n"                       \
+    "{\n"                                                                      \
+    "    const uint gx = get_global_id(0);\n"                                  \
+    "    const uint gy = get_global_id(1);\n"                                  \
+    "    const uint lx = get_local_id(0);\n"                                   \
+    "    const uint ly = get_local_id(1);\n"                                   \
+    "    const uint group_x = get_group_id(0);\n"                              \
+    "    const uint group_y = get_group_id(1);\n"                              \
+    "    const uint local_size_x = get_local_size(0);\n"                       \
+    "    const uint local_size_y = get_local_size(1);\n"                       \
+    "    __local" #TYPE "tile_a[" #TILE_SIZE "][" #TILE_SIZE "];\n"            \
+    "    __local" #TYPE "tile_b[" #TILE_SIZE "][" #TILE_SIZE "];\n"            \
+    "    " #TYPE "sum = 0.0f;\n"                                               \
+    "    const uint tiled_k = (width + local_size_x - 1) / local_size_x;\n"    \
+    "    for (uint t = 0; t < tiled_k; ++t)\n"                                 \
+    "    {\n"                                                                  \
+    "        const uint a_col = t * local_size_x + lx;\n"                      \
+    "        const uint a_row = group_y * local_size_y + ly;\n"                \
+    "        const uint b_row = t * local_size_y + ly;\n"                      \
+    "        const uint b_col = group_x * local_size_x + lx;\n"                \
+    "        tile_a[ly][lx] = (a_row < width && a_col < width)\n"              \
+    "                             ? input_a[a_row * width + a_col]\n"          \
+    "                             : 0.0f;\n"                                   \
+    "        tile_b[ly][lx] = (b_row < width && b_col < width)\n"              \
+    "                             ? input_b[b_row * width + b_col]\n"          \
+    "                             : 0.0f;\n"                                   \
+    "        barrier(CLK_LOCAL_MEM_FENCE);\n"                                  \
+    "        for (uint k = 0; k < local_size_x; ++k)\n"                        \
+    "            sum += tile_a[ly][k] * tile_b[k][lx];\n"                      \
+    "        barrier(CLK_LOCAL_MEM_FENCE);\n"                                  \
+    "    }\n"                                                                  \
+    "    if (gy < width && gx < width)\n"                                      \
+    "        output[gy * width + gx] = sum;\n"                                 \
     "}"
 
 template <typename T>
 struct kernel;
-template <>
-struct kernel<float>
-{
-    static constexpr const char *source{MATRIX_MUL_KERNEL(float)};
-};
 
-template <>
-struct kernel<double>
-{
-    static constexpr const char *source{MATRIX_MUL_KERNEL(double)};
-};
+#define DEFINE_KERNEL(TYPE)                                                    \
+    template <>                                                                \
+    struct kernel<TYPE>                                                        \
+    {                                                                          \
+        static constexpr const char *source{KERNEL_SOURCE(TYPE, TILE_SIZE)};   \
+    }
 
-template <>
-struct kernel<int>
-{
-    static constexpr const char *source{MATRIX_MUL_KERNEL(int)};
-};
-template <>
-struct kernel<long>
-{
-    static constexpr const char *source{MATRIX_MUL_KERNEL(long)};
-};
+DEFINE_KERNEL(float);
+DEFINE_KERNEL(double);
+DEFINE_KERNEL(int);
+DEFINE_KERNEL(long);
 
 template <typename T>
 std::chrono::duration<double, std::milli> test(std::size_t n)
@@ -79,23 +73,17 @@ std::chrono::duration<double, std::milli> test(std::size_t n)
     std::vector<T> h_b(elem_count);
 
     cl_device_id device{get_device()};
-    cl_handler<cl_context> context(
-        clCreateContext(nullptr, 1, &device, nullptr, nullptr, nullptr),
-        clReleaseContext);
-    cl_handler<cl_command_queue> queue(
-        clCreateCommandQueueWithProperties(context.get(), device, nullptr,
-                                           nullptr),
-        clReleaseCommandQueue);
+    cl_handler<cl_context> context{
+        clCreateContext(nullptr, 1, &device, nullptr, nullptr, nullptr)};
+    cl_handler<cl_command_queue> queue{clCreateCommandQueueWithProperties(
+        context.get(), device, nullptr, nullptr)};
 
-    cl_handler<cl_mem> gpu_a(clCreateBuffer(context.get(), CL_MEM_READ_ONLY,
-                                            bytes, nullptr, nullptr),
-                             clReleaseMemObject);
-    cl_handler<cl_mem> gpu_b(clCreateBuffer(context.get(), CL_MEM_READ_ONLY,
-                                            bytes, nullptr, nullptr),
-                             clReleaseMemObject);
-    cl_handler<cl_mem> gpu_o(clCreateBuffer(context.get(), CL_MEM_WRITE_ONLY,
-                                            bytes, nullptr, nullptr),
-                             clReleaseMemObject);
+    cl_handler<cl_mem> gpu_a{clCreateBuffer(context.get(), CL_MEM_READ_ONLY,
+                                            bytes, nullptr, nullptr)};
+    cl_handler<cl_mem> gpu_b{clCreateBuffer(context.get(), CL_MEM_READ_ONLY,
+                                            bytes, nullptr, nullptr)};
+    cl_handler<cl_mem> gpu_o{clCreateBuffer(context.get(), CL_MEM_WRITE_ONLY,
+                                            bytes, nullptr, nullptr)};
 
     clEnqueueWriteBuffer(queue.get(), gpu_a.get(), CL_TRUE, 0, bytes,
                          h_a.data(), 0, nullptr, nullptr);
@@ -105,21 +93,19 @@ std::chrono::duration<double, std::milli> test(std::size_t n)
 
     const char *kernel_source{kernel<T>::source};
 
-    cl_handler<cl_program> program(clCreateProgramWithSource(context.get(), 1,
-                                                             &kernel_source,
-                                                             nullptr, nullptr),
-                                   clReleaseProgram);
+    cl_handler<cl_program> program{clCreateProgramWithSource(
+        context.get(), 1, &kernel_source, nullptr, nullptr)};
     clBuildProgram(program.get(), 1, &device, nullptr, nullptr, nullptr);
-    cl_handler<cl_kernel> kernel(
-        clCreateKernel(program.get(), "multMatrixTiled", nullptr),
-        clReleaseKernel);
+    cl_handler<cl_kernel> kernel{
+        clCreateKernel(program.get(), "mul_matrix_tiled", nullptr)};
 
     const cl_uint width{static_cast<cl_uint>(n)};
     set_kernel_args(kernel.get(), gpu_o.get_ptr(), gpu_a.get_ptr(),
                     gpu_b.get_ptr(), &width);
 
     std::size_t global_size[2]{n, n};
-    std::size_t local_size[2]{16, 16}; // Adjust local size as needed
+    std::size_t local_size[2]{TILE_SIZE,
+                              TILE_SIZE}; // Adjust local size as needed
     auto start{std::chrono::high_resolution_clock::now()};
     clEnqueueNDRangeKernel(queue.get(), kernel.get(), 2, nullptr, global_size,
                            local_size, 0, nullptr, nullptr);

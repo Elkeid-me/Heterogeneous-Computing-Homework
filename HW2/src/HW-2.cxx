@@ -55,37 +55,28 @@ int main(int argc, char *argv[])
 
     cl_device_id device{get_device()};
 
-    cl_handler<cl_context> context(
-        clCreateContext(nullptr, 1, &device, nullptr, nullptr, nullptr),
-        clReleaseContext);
-    cl_handler<cl_command_queue> queue(
-        clCreateCommandQueueWithProperties(context.get(), device, nullptr,
-                                           nullptr),
-        clReleaseCommandQueue);
+    cl_handler<cl_context> context{
+        clCreateContext(nullptr, 1, &device, nullptr, nullptr, nullptr)};
+    cl_handler<cl_command_queue> queue{clCreateCommandQueueWithProperties(
+        context.get(), device, nullptr, nullptr)};
 
-    cl_handler<cl_mem> gpu_A(
-        clCreateBuffer(context.get(), CL_MEM_READ_ONLY, size, nullptr, nullptr),
-        clReleaseMemObject);
-    cl_handler<cl_mem> gpu_B(
-        clCreateBuffer(context.get(), CL_MEM_READ_ONLY, size, nullptr, nullptr),
-        clReleaseMemObject);
-    cl_handler<cl_mem> gpu_C(clCreateBuffer(context.get(), CL_MEM_WRITE_ONLY,
-                                            size, nullptr, nullptr),
-                             clReleaseMemObject);
+    cl_handler<cl_mem> gpu_A{clCreateBuffer(context.get(), CL_MEM_READ_ONLY,
+                                            size, nullptr, nullptr)};
+    cl_handler<cl_mem> gpu_B{clCreateBuffer(context.get(), CL_MEM_READ_ONLY,
+                                            size, nullptr, nullptr)};
+    cl_handler<cl_mem> gpu_C{clCreateBuffer(context.get(), CL_MEM_WRITE_ONLY,
+                                            size, nullptr, nullptr)};
 
     clEnqueueWriteBuffer(queue.get(), gpu_A.get(), CL_TRUE, 0, size, h_A.data(),
                          0, nullptr, nullptr);
     clEnqueueWriteBuffer(queue.get(), gpu_B.get(), CL_TRUE, 0, size, h_B.data(),
                          0, nullptr, nullptr);
     clFinish(queue.get());
-    cl_handler<cl_program> program(clCreateProgramWithSource(context.get(), 1,
-                                                             &kernel_source,
-                                                             nullptr, nullptr),
-                                   clReleaseProgram);
+    cl_handler<cl_program> program{clCreateProgramWithSource(
+        context.get(), 1, &kernel_source, nullptr, nullptr)};
     clBuildProgram(program.get(), 1, &device, nullptr, nullptr, nullptr);
-    cl_handler<cl_kernel> kernel(
-        clCreateKernel(program.get(), "vector_add", nullptr), clReleaseKernel);
-
+    cl_handler<cl_kernel> kernel{
+        clCreateKernel(program.get(), "vector_add", nullptr)};
     set_kernel_args(kernel.get(), gpu_A.get_ptr(), gpu_B.get_ptr(),
                     gpu_C.get_ptr());
     auto start_opencl{std::chrono::high_resolution_clock::now()};

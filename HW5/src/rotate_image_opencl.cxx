@@ -82,21 +82,16 @@ rotate_image_opencl(std::uint32_t *src_ptr, std::uint32_t *dst_ptr, int width,
     const std::size_t width_size{static_cast<std::size_t>(width)};
     const std::size_t height_size{static_cast<std::size_t>(height)};
     cl_device_id device{get_device()};
-    cl_handler<cl_context> context(
-        clCreateContext(nullptr, 1, &device, nullptr, nullptr, nullptr),
-        clReleaseContext);
-    cl_handler<cl_command_queue> queue(
-        clCreateCommandQueueWithProperties(context.get(), device, nullptr,
-                                           nullptr),
-        clReleaseCommandQueue);
+    cl_handler<cl_context> context{
+        clCreateContext(nullptr, 1, &device, nullptr, nullptr, nullptr)};
+    cl_handler<cl_command_queue> queue{clCreateCommandQueueWithProperties(
+        context.get(), device, nullptr, nullptr)};
     const char *sources{KERNEL_SOURCE};
-    cl_handler<cl_program> program(
-        clCreateProgramWithSource(context.get(), 1, &sources, nullptr, nullptr),
-        clReleaseProgram);
+    cl_handler<cl_program> program{clCreateProgramWithSource(
+        context.get(), 1, &sources, nullptr, nullptr)};
     clBuildProgram(program.get(), 1, &device, nullptr, nullptr, nullptr);
-    cl_handler<cl_kernel> kernel(
-        clCreateKernel(program.get(), "rotate_image", nullptr),
-        clReleaseKernel);
+    cl_handler<cl_kernel> kernel{
+        clCreateKernel(program.get(), "rotate_image", nullptr)};
 
     cl_image_format format;
     format.image_channel_order = CL_RGBA;
@@ -107,16 +102,12 @@ rotate_image_opencl(std::uint32_t *src_ptr, std::uint32_t *dst_ptr, int width,
     desc.image_width = width_size;
     desc.image_height = height_size;
 
-    cl_handler<cl_mem> src_image(
-        clCreateImage(context.get(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                      &format, &desc, const_cast<std::uint32_t *>(src_ptr),
-                      nullptr),
-        clReleaseMemObject);
+    cl_handler<cl_mem> src_image{clCreateImage(
+        context.get(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &format, &desc,
+        const_cast<std::uint32_t *>(src_ptr), nullptr)};
 
-    cl_handler<cl_mem> dst_image{clCreateImage(context.get(), CL_MEM_WRITE_ONLY,
-                                               &format, &desc, nullptr,
-                                               nullptr),
-                                 clReleaseMemObject};
+    cl_handler<cl_mem> dst_image{clCreateImage(
+        context.get(), CL_MEM_WRITE_ONLY, &format, &desc, nullptr, nullptr)};
 
     const float radians{degrees * std::numbers::pi_v<float> / 180.0f};
     set_kernel_args(kernel.get(), src_image.get_ptr(), dst_image.get_ptr(),

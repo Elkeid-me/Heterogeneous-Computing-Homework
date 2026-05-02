@@ -7,34 +7,37 @@
 #include <ratio>
 #include <vector>
 
-#define MATRIX_MUL_KERNEL(TYPE)                                                \
-    "__kernel void multMatrixSimple(\n"                                        \
-    "__global" #TYPE "*mO,\n"                                                  \
-    "__global" #TYPE "*mA,\n"                                                  \
-    "__global" #TYPE "*mB, uint width) {\n"                                    \
-    "int globalIdx = get_global_id(0);\n"                                      \
-    "int globalIdy = get_global_id(1);\n" #TYPE "sum = 0;\n"                   \
-    "for (int i = 0; i < width; i++) {\n" #TYPE                                \
-    "tempA = mA[globalIdy * width + i];\n" #TYPE                               \
-    "tempB = mB[i * width + globalIdx];\n"                                     \
-    "sum += tempA * tempB;\n"                                                  \
-    "}\n"                                                                      \
-    "mO[globalIdy * width + globalIdx] = sum;\n"                               \
-    "}\n"
+#define KERNEL_SOURCE(TYPE)                                                    \
+    "__kernel void mul_matrix_simple(__global" #TYPE "*output,\n"              \
+    "                                __global" #TYPE "*input_a,\n"             \
+    "                                __global" #TYPE "*input_b,\n"             \
+    "                                uint width)\n"                            \
+    "{\n"                                                                      \
+    "    int global_id_x = get_global_id(0);\n"                                \
+    "    int global_id_y = get_global_id(1);\n"                                \
+    "    " #TYPE "sum = 0;\n"                                                  \
+    "    for (int i = 0; i < width; i++)\n"                                    \
+    "    {\n"                                                                  \
+    "        " #TYPE "temp_a = input_a[global_id_y * width + i];\n"            \
+    "        " #TYPE "temp_b = input_b[i * width + global_id_x];\n"            \
+    "        sum += temp_a * temp_b;\n"                                        \
+    "    }\n"                                                                  \
+    "    output[global_id_y * width + global_id_x] = sum;\n"                   \
+    "}"
 
 // From AMD's *Introduction to OpenCL Programming*
 template <typename T>
 struct kernel;
-template <>
-struct kernel<float>
-{
-    static constexpr const char *source{MATRIX_MUL_KERNEL(float)};
-};
-template <>
-struct kernel<double>
-{
-    static constexpr const char *source{MATRIX_MUL_KERNEL(double)};
-};
+
+#define DEFINE_KERNEL(TYPE)                                                    \
+    template <>                                                                \
+    struct kernel<TYPE>                                                        \
+    {                                                                          \
+        static constexpr const char *source{KERNEL_SOURCE(TYPE)};              \
+    }
+
+DEFINE_KERNEL(float);
+DEFINE_KERNEL(double);
 
 template <typename T>
 std::chrono::duration<double, std::milli> test(std::size_t n)
@@ -46,23 +49,17 @@ std::chrono::duration<double, std::milli> test(std::size_t n)
     std::vector<T> h_b(elem_count);
 
     cl_device_id device{get_device()};
-    cl_handler<cl_context> context(
-        clCreateContext(nullptr, 1, &device, nullptr, nullptr, nullptr),
-        clRetainContext);
-    cl_handler<cl_command_queue> queue(
-        clCreateCommandQueueWithProperties(context.get(), device, nullptr,
-                                           nullptr),
-        clReleaseCommandQueue);
+    cl_handler<cl_context> context{
+        clCreateContext(nullptr, 1, &device, nullptr, nullptr, nullptr)};
+    cl_handler<cl_command_queue> queue{clCreateCommandQueueWithProperties(
+        context.get(), device, nullptr, nullptr)};
 
-    cl_handler<cl_mem> gpu_a(clCreateBuffer(context.get(), CL_MEM_READ_ONLY,
-                                            bytes, nullptr, nullptr),
-                             clReleaseMemObject);
-    cl_handler<cl_mem> gpu_b(clCreateBuffer(context.get(), CL_MEM_READ_ONLY,
-                                            bytes, nullptr, nullptr),
-                             clReleaseMemObject);
-    cl_handler<cl_mem> gpu_o(clCreateBuffer(context.get(), CL_MEM_WRITE_ONLY,
-                                            bytes, nullptr, nullptr),
-                             clReleaseMemObject);
+    cl_handler<cl_mem> gpu_a{clCreateBuffer(context.get(), CL_MEM_READ_ONLY,
+                                            bytes, nullptr, nullptr)};
+    cl_handler<cl_mem> gpu_b{clCreateBuffer(context.get(), CL_MEM_READ_ONLY,
+                                            bytes, nullptr, nullptr)};
+    cl_handler<cl_mem> gpu_o{clCreateBuffer(context.get(), CL_MEM_WRITE_ONLY,
+                                            bytes, nullptr, nullptr)};
 
     clEnqueueWriteBuffer(queue.get(), gpu_a.get(), CL_TRUE, 0, bytes,
                          h_a.data(), 0, nullptr, nullptr);
@@ -71,14 +68,11 @@ std::chrono::duration<double, std::milli> test(std::size_t n)
     clFinish(queue.get());
 
     const char *kernel_source{kernel<T>::source};
-    cl_handler<cl_program> program(clCreateProgramWithSource(context.get(), 1,
-                                                             &kernel_source,
-                                                             nullptr, nullptr),
-                                   clReleaseProgram);
+    cl_handler<cl_program> program{clCreateProgramWithSource(
+        context.get(), 1, &kernel_source, nullptr, nullptr)};
     clBuildProgram(program.get(), 1, &device, nullptr, nullptr, nullptr);
-    cl_handler<cl_kernel> kernel(
-        clCreateKernel(program.get(), "multMatrixSimple", nullptr),
-        clReleaseKernel);
+    cl_handler<cl_kernel> kernel{
+        clCreateKernel(program.get(), "mul_matrix_simple", nullptr)};
 
     const cl_uint width{static_cast<cl_uint>(n)};
     set_kernel_args(kernel.get(), gpu_o.get_ptr(), gpu_a.get_ptr(),
