@@ -7,6 +7,6 @@ includes("../xmake/opencl.lua")
 add_intel_opencl()
 add_includedirs("../base")
 
-target("sync_test")
+target("sync-test")
     set_kind("binary")
-    add_files("src/sync_test.cxx", "../base/base.cxx")
+    add_files("src/sync-test.cxx", "../base/base.cxx")
