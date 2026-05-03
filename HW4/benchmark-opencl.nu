@@ -9,10 +9,10 @@ let vec_len = [1024 2048 4096 8192]
 def benchmark [len: int] {
     let $result = 1..10 | each { |item|
         let result = ./build/windows/x64/release/matrix-mul $len --benchmark | lines
-        let int_time = $result.0 | into int
-        let long_time = $result.1 | into int
-        let float_time = $result.2 | into int
-        let double_time = $result.3 | into int
+        let int_time = $result.0 | into float
+        let long_time = $result.1 | into float
+        let float_time = $result.2 | into float
+        let double_time = $result.3 | into float
         {int: $int_time, long: $long_time, float: $float_time, double: $double_time}
     }
     let int_time = $result.int | math avg

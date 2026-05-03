@@ -14,14 +14,14 @@ let vec_len = [1024 2048 4096]
 def benchmark [len: int] {
     let $sycl_result = 1..10 | each { |item|
         let result = ./build/sycl-matrix-mul $len --benchmark | lines
-        let int_time = $result.0 | into int
-        let float_time = $result.1 | into int
+        let int_time = $result.0 | into float
+        let float_time = $result.1 | into float
         {int: $int_time, float: $float_time}
     }
     let $cuda_result = 1..10 | each { |item|
         let result = xmake r cuda-matrix-mul $len --benchmark | lines
-        let int_time = $result.0 | into int
-        let float_time = $result.1 | into int
+        let int_time = $result.0 | into float
+        let float_time = $result.1 | into float
         {int: $int_time, float: $float_time}
     }
     let sycl_int_time = $sycl_result.int | math avg

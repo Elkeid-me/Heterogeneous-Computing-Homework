@@ -9,14 +9,14 @@ let vec_len = [1024 2048 4096 8192]
 def benchmark [len: int] {
     let $simple_result = 1..10 | each { |item|
         let result = xmake r matrix-mul $len --benchmark | lines
-        let float_time = $result.0 | into int
-        let double_time = $result.1 | into int
+        let float_time = $result.0 | into float
+        let double_time = $result.1 | into float
         {float: $float_time, double: $double_time}
     }
     let $tiled_result = 1..10 | each { |item|
         let result = xmake r matrix-mul-optimized $len --benchmark | lines
-        let float_time = $result.0 | into int
-        let double_time = $result.1 | into int
+        let float_time = $result.0 | into float
+        let double_time = $result.1 | into float
         {float: $float_time, double: $double_time}
     }
     let float_time = $simple_result.float | math avg

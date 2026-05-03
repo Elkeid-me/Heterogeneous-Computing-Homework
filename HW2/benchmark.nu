@@ -9,8 +9,8 @@ let vec_len = [10 100 1000 10000 100000 1000000 10000000 100000000 200000000]
 def benchmark [len: int] {
     let $result = 1..10 | each { |item|
         let result = xmake r homework-2 $len --benchmark | lines
-        let cpu_time = $result.0 | into int
-        let gpu_time = $result.1 | into int
+        let cpu_time = $result.0 | into float
+        let gpu_time = $result.1 | into float
         {cpu: $cpu_time, gpu: $gpu_time}
     }
     let cpu_time = $result.cpu | math avg
