@@ -13,14 +13,8 @@ benchmark_case(const std::size_t input_width)
     const std::size_t input_height{input_width};
     std::vector<T> input{make_input<T>(input_width, input_height)};
     std::vector<T> kernel{make_kernel<T>()};
-    std::vector<T> output;
-    const auto func{[&]()
-                    {
-                        output = convolve_cpu_unoptimized(
-                            input, input_width, input_height, kernel,
-                            KERNEL_WIDTH, KERNEL_HEIGHT);
-                    }};
-    const auto elapsed{measure_ms(func)};
+    auto [output, elapsed]{convolve_cpu_unoptimized(
+        input, input_width, input_height, kernel, KERNEL_WIDTH, KERNEL_HEIGHT)};
     benchmark_sink ^= checksum(output);
     return elapsed;
 }
@@ -35,7 +29,9 @@ int main(int argc, char *argv[])
 
     std::size_t input_width;
     std::from_chars(argv[1], argv[1] + std::strlen(argv[1]), input_width);
+    input_width += 2 * (KERNEL_WIDTH / 2);
 
+    benchmark_case<std::int32_t>(1024); // Warmup
     const auto time_int8{benchmark_case<std::int8_t>(input_width)};
     const auto time_int16{benchmark_case<std::int16_t>(input_width)};
     const auto time_int32{benchmark_case<std::int32_t>(input_width)};

@@ -102,13 +102,12 @@ benchmark_case(const std::size_t input_width)
 
     const std::size_t global_size[2]{output_width, output_height};
     clFinish(queue.get());
-    const auto elapsed{measure_ms(
-        [&]()
-        {
-            clEnqueueNDRangeKernel(queue.get(), kernel_handle.get(), 2, nullptr,
-                                   global_size, nullptr, 0, nullptr, nullptr);
-            clFinish(queue.get());
-        })};
+    const auto start{std::chrono::high_resolution_clock::now()};
+    clEnqueueNDRangeKernel(queue.get(), kernel_handle.get(), 2, nullptr,
+                           global_size, nullptr, 0, nullptr, nullptr);
+    clFinish(queue.get());
+    const auto end{std::chrono::high_resolution_clock::now()};
+    const auto elapsed{end - start};
 
     std::vector<T> output(output_width * output_height);
     clEnqueueReadBuffer(queue.get(), output_buffer.get(), CL_TRUE, 0,
@@ -127,7 +126,9 @@ int main(int argc, char *argv[])
 
     std::size_t input_width{};
     std::from_chars(argv[1], argv[1] + std::strlen(argv[1]), input_width);
+    input_width += 2 * (KERNEL_WIDTH / 2);
 
+    benchmark_case<std::int32_t>(1024); // Warmup
     const auto time_int8{benchmark_case<std::int8_t>(input_width)};
     const auto time_int16{benchmark_case<std::int16_t>(input_width)};
     const auto time_int32{benchmark_case<std::int32_t>(input_width)};

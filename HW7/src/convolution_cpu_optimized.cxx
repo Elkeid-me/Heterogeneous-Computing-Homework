@@ -114,7 +114,7 @@ struct avx2_traits<double>
 };
 
 template <typename T>
-std::vector<T>
+std::tuple<std::vector<T>, std::chrono::duration<double, std::milli>>
 convolve_optimized(const std::vector<T> &input, const std::size_t input_width,
                    const std::size_t input_height, const std::vector<T> &kernel,
                    const std::size_t kernel_width,
@@ -124,37 +124,39 @@ convolve_optimized(const std::vector<T> &input, const std::size_t input_width,
     const std::size_t output_height{input_height - kernel_height + 1};
     std::vector<T> output(output_width * output_height);
 
+    auto start{std::chrono::high_resolution_clock::now()};
     const std::size_t vector_width{avx2_traits<T>::vector_width};
     const std::size_t vector_limit{output_width / vector_width * vector_width};
-
     for (std::size_t out_y{0}; out_y < output_height; out_y++)
     {
         for (std::size_t out_x{0}; out_x < vector_limit; out_x += vector_width)
-        {
-            typename avx2_traits<T>::vector_type sum{avx2_traits<T>::setzero()};
             for (std::size_t kernel_y{0}; kernel_y < kernel_height; kernel_y++)
             {
+                typename avx2_traits<T>::vector_type sum{
+                    avx2_traits<T>::setzero()};
                 for (std::size_t kernel_x{0}; kernel_x < kernel_width;
                      kernel_x++)
                 {
-                    const std::size_t input_index{
-                        (out_y + kernel_y) * input_width + out_x + kernel_x};
-                    const typename avx2_traits<T>::vector_type source{
-                        avx2_traits<T>::load(input.data() + input_index)};
-                    const typename avx2_traits<T>::vector_type weight{
-                        avx2_traits<T>::set1(
-                            kernel[kernel_y * kernel_width + kernel_x])};
-                    sum = avx2_traits<T>::add(
-                        sum, avx2_traits<T>::mul(weight, source));
+                    {
+                        const std::size_t input_index{(out_y + kernel_y) *
+                                                          input_width +
+                                                      out_x + kernel_x};
+                        const typename avx2_traits<T>::vector_type source{
+                            avx2_traits<T>::load(input.data() + input_index)};
+                        const typename avx2_traits<T>::vector_type weight{
+                            avx2_traits<T>::set1(
+                                kernel[kernel_y * kernel_width + kernel_x])};
+                        sum = avx2_traits<T>::add(
+                            sum, avx2_traits<T>::mul(weight, source));
+                    }
                 }
+                avx2_traits<T>::store(
+                    output.data() + out_y * output_width + out_x, sum);
             }
-            avx2_traits<T>::store(output.data() + out_y * output_width + out_x,
-                                  sum);
-        }
 
         for (std::size_t out_x{vector_limit}; out_x < output_width; out_x++)
         {
-            T acc{0};
+            T sum{};
             for (std::size_t kernel_y{0}; kernel_y < kernel_height; kernel_y++)
             {
                 for (std::size_t kernel_x{0}; kernel_x < kernel_width;
@@ -162,15 +164,16 @@ convolve_optimized(const std::vector<T> &input, const std::size_t input_width,
                 {
                     const std::size_t input_index{
                         (out_y + kernel_y) * input_width + out_x + kernel_x};
-                    acc += kernel[kernel_y * kernel_width + kernel_x] *
+                    sum += kernel[kernel_y * kernel_width + kernel_x] *
                            input[input_index];
                 }
             }
-            output[out_y * output_width + out_x] = acc;
+            output[out_y * output_width + out_x] = sum;
         }
     }
-
-    return output;
+    auto end{std::chrono::high_resolution_clock::now()};
+    auto elapsed{end - start};
+    return {std::move(output), elapsed};
 }
 
 template <typename T>
@@ -180,13 +183,8 @@ benchmark_case(std::size_t input_width)
     const std::size_t input_height{input_width};
     std::vector<T> input{make_input<T>(input_width, input_height)};
     std::vector<T> kernel{make_kernel<T>()};
-    std::vector<T> output;
-    const auto elapsed{measure_ms(
-        [&]()
-        {
-            output = convolve_optimized(input, input_width, input_height,
-                                        kernel, KERNEL_WIDTH, KERNEL_HEIGHT);
-        })};
+    auto [output, elapsed]{convolve_optimized(
+        input, input_width, input_height, kernel, KERNEL_WIDTH, KERNEL_HEIGHT)};
     benchmark_sink ^= checksum(std::move(output));
     return elapsed;
 }
@@ -202,7 +200,9 @@ int main(int argc, char *argv[])
 
     std::size_t input_width{};
     std::from_chars(argv[1], argv[1] + std::strlen(argv[1]), input_width);
+    input_width += 2 * (KERNEL_WIDTH / 2);
 
+    benchmark_case<std::int32_t>(1024); // Warmup
     const auto time_int16{benchmark_case<std::int16_t>(input_width)};
     const auto time_int32{benchmark_case<std::int32_t>(input_width)};
     const auto time_float32{benchmark_case<float>(input_width)};

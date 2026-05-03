@@ -110,32 +110,25 @@ sparse_stencil<T> make_sparse_stencil(const std::vector<T> &dense,
     return stencil;
 }
 
-template <typename F>
-std::chrono::duration<double, std::milli> measure_ms(F &&fn)
-{
-    const auto start{std::chrono::high_resolution_clock::now()};
-    fn();
-    const auto end{std::chrono::high_resolution_clock::now()};
-    return end - start;
-}
-
 template <typename T>
-std::vector<T> convolve_cpu_unoptimized(const std::vector<T> input,
-                                        const std::size_t input_width,
-                                        const std::size_t input_height,
-                                        const std::vector<T> kernel,
-                                        const std::size_t kernel_width,
-                                        const std::size_t kernel_height)
+std::tuple<std::vector<T>, std::chrono::duration<double, std::milli>>
+convolve_cpu_unoptimized(const std::vector<T> &input,
+                         const std::size_t input_width,
+                         const std::size_t input_height,
+                         const std::vector<T> &kernel,
+                         const std::size_t kernel_width,
+                         const std::size_t kernel_height)
 {
     const std::size_t output_width{input_width - kernel_width + 1};
     const std::size_t output_height{input_height - kernel_height + 1};
     std::vector<T> output(output_width * output_height);
 
+    const auto start{std::chrono::high_resolution_clock::now()};
     for (std::size_t out_y{0}; out_y < output_height; out_y++)
     {
         for (std::size_t out_x{0}; out_x < output_width; out_x++)
         {
-            T sum{};
+            T sum{0};
             for (std::size_t kernel_y{0}; kernel_y < kernel_height; kernel_y++)
             {
                 for (std::size_t kernel_x{0}; kernel_x < kernel_width;
@@ -148,11 +141,12 @@ std::vector<T> convolve_cpu_unoptimized(const std::vector<T> input,
                     sum += kernel[kernel_index] * input[input_index];
                 }
             }
-            output[out_y * output_width + out_x] = static_cast<T>(sum);
+            output[out_y * output_width + out_x] = sum;
         }
     }
-
-    return output;
+    const auto end{std::chrono::high_resolution_clock::now()};
+    const auto elapsed{end - start};
+    return {std::move(output), elapsed};
 }
 
 template <typename T>
