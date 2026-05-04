@@ -1,4 +1,8 @@
-let results_file = "benchmark_results.csv"
+let results_file = if (sys cpu | get 0.brand) =~ 11370H {
+    "benchmark_results_11370H.csv"
+} else {
+    "benchmark_results_125H.csv"
+}
 
 if ($results_file | path exists) {
     rm $results_file
