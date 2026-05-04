@@ -1,117 +1,107 @@
 #include "utils.hxx"
 
-#include <immintrin.h>
-
 #include <charconv>
 #include <cstddef>
 #include <cstring>
+#include <immintrin.h>
 #include <iostream>
 #include <utility>
 #include <vector>
 
-static_assert(__AVX2__,
-              "This file should only be compiled when AVX2 is available.");
+#if !(defined(__AVX2__) || defined(__AVX512F__))
+#error "This file should only be compiled when AVX2/AVX-512 is available."
+#endif
 
 template <typename T>
-struct avx2_traits;
+T place_holder(T, T, T)
+{
+    return T{};
+}
 
-template <>
-struct avx2_traits<std::int32_t>
-{
-    using vector_type = __m256i;
-    static constexpr std::size_t vector_width{8};
-    static vector_type load(const std::int32_t *ptr)
-    {
-        return _mm256_loadu_si256(reinterpret_cast<const vector_type *>(ptr));
-    }
-    static vector_type setzero() { return _mm256_setzero_si256(); }
-    static vector_type set1(std::int32_t value)
-    {
-        return _mm256_set1_epi32(value);
-    }
-    static vector_type mul(vector_type a, vector_type b)
-    {
-        return _mm256_mullo_epi32(a, b);
-    }
-    static vector_type add(vector_type a, vector_type b)
-    {
-        return _mm256_add_epi32(a, b);
-    }
-    static void store(std::int32_t *ptr, vector_type value)
-    {
-        _mm256_storeu_si256(reinterpret_cast<vector_type *>(ptr), value);
-    }
-};
-template <>
-struct avx2_traits<std::int16_t>
-{
-    using vector_type = __m256i;
-    static constexpr std::size_t vector_width{16};
-    static vector_type load(const std::int16_t *ptr)
-    {
-        return _mm256_loadu_si256(reinterpret_cast<const vector_type *>(ptr));
-    }
-    static vector_type setzero() { return _mm256_setzero_si256(); }
-    static vector_type set1(std::int16_t value)
-    {
-        return _mm256_set1_epi16(value);
-    }
-    static vector_type mul(vector_type a, vector_type b)
-    {
-        return _mm256_mullo_epi16(a, b);
-    }
-    static vector_type add(vector_type a, vector_type b)
-    {
-        return _mm256_add_epi16(a, b);
-    }
-    static void store(std::int16_t *ptr, vector_type value)
-    {
-        _mm256_storeu_si256(reinterpret_cast<vector_type *>(ptr), value);
-    }
-};
-template <>
-struct avx2_traits<float>
-{
-    using vector_type = __m256;
-    static constexpr std::size_t vector_width{8};
-    static vector_type load(const float *ptr) { return _mm256_loadu_ps(ptr); }
-    static vector_type setzero() { return _mm256_setzero_ps(); }
-    static vector_type set1(float value) { return _mm256_set1_ps(value); }
-    static vector_type mul(vector_type a, vector_type b)
-    {
-        return _mm256_mul_ps(a, b);
-    }
-    static vector_type add(vector_type a, vector_type b)
-    {
-        return _mm256_add_ps(a, b);
-    }
-    static void store(float *ptr, vector_type value)
-    {
-        _mm256_storeu_ps(ptr, value);
-    }
-};
+template <typename T>
+struct avx_traits;
 
-template <>
-struct avx2_traits<double>
-{
-    using vector_type = __m256d;
-    static constexpr std::size_t vector_width{4};
-    static vector_type load(const double *ptr) { return _mm256_loadu_pd(ptr); }
-    static vector_type setzero() { return _mm256_setzero_pd(); }
-    static vector_type set1(double value) { return _mm256_set1_pd(value); }
-    static vector_type mul(vector_type a, vector_type b)
-    {
-        return _mm256_mul_pd(a, b);
+#define DEFINE_AVX_TRAIT(TYPE, SUPPORT_MUL_ADD, VEC_TYPE, VEC_WIDTH,           \
+                         PTR_VAR_NAME, VAL_VAR_NAME, LOAD_EXPR, SETZERO, SET1, \
+                         MUL, ADD, MUL_ADD, STORE_EXPR)                        \
+    template <>                                                                \
+    struct avx_traits<TYPE>                                                    \
+    {                                                                          \
+        using vector_type = VEC_TYPE;                                          \
+        static constexpr std::size_t vector_width{VEC_WIDTH};                  \
+        static vector_type load(const TYPE *PTR_VAR_NAME)                      \
+        {                                                                      \
+            return LOAD_EXPR;                                                  \
+        }                                                                      \
+        static vector_type setzero() { return SETZERO(); }                     \
+        static vector_type set1(TYPE VAL_VAR_NAME)                             \
+        {                                                                      \
+            return SET1(VAL_VAR_NAME);                                         \
+        }                                                                      \
+        static vector_type mul(vector_type a, vector_type b)                   \
+        {                                                                      \
+            return MUL(a, b);                                                  \
+        }                                                                      \
+        static vector_type add(vector_type a, vector_type b)                   \
+        {                                                                      \
+            return ADD(a, b);                                                  \
+        }                                                                      \
+        static vector_type mul_add(vector_type a, vector_type b,               \
+                                   vector_type c)                              \
+        {                                                                      \
+            return MUL_ADD(a, b, c);                                           \
+        }                                                                      \
+        static void store(TYPE *PTR_VAR_NAME, vector_type VAL_VAR_NAME)        \
+        {                                                                      \
+            STORE_EXPR;                                                        \
+        }                                                                      \
+        static constexpr bool support_mul_add{SUPPORT_MUL_ADD};                \
     }
-    static vector_type add(vector_type a, vector_type b)
-    {
-        return _mm256_add_pd(a, b);
-    }
-    static void store(double *ptr, vector_type value)
-    {
-        _mm256_storeu_pd(ptr, value);
-    }
-};
+
+#undef __AVX512F__
+#undef __AVX512BW__
+
+#ifdef __AVX512F__
+DEFINE_AVX_TRAIT(std::int32_t, false, __m512i, 512 / 32, ptr, value,
+                 _mm512_loadu_si512(ptr), _mm512_setzero_si512,
+                 _mm512_set1_epi32, _mm512_mullo_epi32, _mm512_add_epi32,
+                 place_holder, _mm512_storeu_si512(ptr, value));
+DEFINE_AVX_TRAIT(float, true, __m512, 512 / 32, ptr, value,
+                 _mm512_loadu_ps(ptr), _mm512_setzero_ps, _mm512_set1_ps,
+                 _mm512_mul_ps, _mm512_add_ps, _mm512_fmadd_ps,
+                 _mm512_storeu_ps(ptr, value));
+DEFINE_AVX_TRAIT(double, true, __m512d, 512 / 64, ptr, value,
+                 _mm512_loadu_pd(ptr), _mm512_setzero_pd, _mm512_set1_pd,
+                 _mm512_mul_pd, _mm512_add_pd, _mm512_fmadd_pd,
+                 _mm512_storeu_pd(ptr, value));
+#else
+DEFINE_AVX_TRAIT(std::int32_t, false, __m256i, 256 / 32, ptr, value,
+                 _mm256_loadu_si256(reinterpret_cast<const __m256i *>(ptr)),
+                 _mm256_setzero_si256, _mm256_set1_epi32, _mm256_mullo_epi32,
+                 _mm256_add_epi32, place_holder,
+                 _mm256_storeu_si256(reinterpret_cast<__m256i *>(ptr), value));
+DEFINE_AVX_TRAIT(float, true, __m256, 256 / 32, ptr, value,
+                 _mm256_loadu_ps(ptr), _mm256_setzero_ps, _mm256_set1_ps,
+                 _mm256_mul_ps, _mm256_add_ps, _mm256_fmadd_ps,
+                 _mm256_storeu_ps(ptr, value));
+DEFINE_AVX_TRAIT(double, true, __m256d, 256 / 64, ptr, value,
+                 _mm256_loadu_pd(ptr), _mm256_setzero_pd, _mm256_set1_pd,
+                 _mm256_mul_pd, _mm256_add_pd, _mm256_fmadd_pd,
+                 _mm256_storeu_pd(ptr, value));
+#endif
+
+#ifdef __AVX512BW__
+DEFINE_AVX_TRAIT(std::int16_t, false, __m512i, 512 / 16, ptr, value,
+                 _mm512_loadu_si512(ptr), _mm512_setzero_si512,
+                 _mm512_set1_epi16, _mm512_mullo_epi16, _mm512_add_epi16,
+                 place_holder, _mm512_storeu_si512(ptr, value));
+#else
+DEFINE_AVX_TRAIT(std::int16_t, false, __m256i, 256 / 16, ptr, value,
+                 _mm256_loadu_si256(reinterpret_cast<const __m256i *>(ptr)),
+                 _mm256_setzero_si256, _mm256_set1_epi16, _mm256_mullo_epi16,
+                 _mm256_add_epi16, place_holder,
+                 _mm256_storeu_si256(reinterpret_cast<__m256i *>(ptr), value));
+#endif
 
 template <typename T>
 std::tuple<std::vector<T>, std::chrono::duration<double, std::milli>>
@@ -125,34 +115,41 @@ convolve_optimized(const std::vector<T> &input, const std::size_t input_width,
     std::vector<T> output(output_width * output_height);
 
     auto start{std::chrono::high_resolution_clock::now()};
-    const std::size_t vector_width{avx2_traits<T>::vector_width};
+    const std::size_t vector_width{avx_traits<T>::vector_width};
     const std::size_t vector_limit{output_width / vector_width * vector_width};
     for (std::size_t out_y{0}; out_y < output_height; out_y++)
     {
         for (std::size_t out_x{0}; out_x < vector_limit; out_x += vector_width)
+        {
+            typename avx_traits<T>::vector_type sum{avx_traits<T>::setzero()};
             for (std::size_t kernel_y{0}; kernel_y < kernel_height; kernel_y++)
             {
-                typename avx2_traits<T>::vector_type sum{
-                    avx2_traits<T>::setzero()};
                 for (std::size_t kernel_x{0}; kernel_x < kernel_width;
                      kernel_x++)
                 {
-                    {
-                        const std::size_t input_index{(out_y + kernel_y) *
-                                                          input_width +
-                                                      out_x + kernel_x};
-                        const typename avx2_traits<T>::vector_type source{
-                            avx2_traits<T>::load(input.data() + input_index)};
-                        const typename avx2_traits<T>::vector_type weight{
-                            avx2_traits<T>::set1(
-                                kernel[kernel_y * kernel_width + kernel_x])};
-                        sum = avx2_traits<T>::add(
-                            sum, avx2_traits<T>::mul(weight, source));
-                    }
+
+                    const std::size_t input_index{
+                        (out_y + kernel_y) * input_width + out_x + kernel_x};
+                    const typename avx_traits<T>::vector_type source{
+                        avx_traits<T>::load(input.data() + input_index)};
+                    const typename avx_traits<T>::vector_type weight{
+                        avx_traits<T>::set1(
+                            kernel[kernel_y * kernel_width + kernel_x])};
+#ifdef __FMA__
+                    if constexpr (avx_traits<T>::support_mul_add)
+                        sum = avx_traits<T>::mul_add(weight, source, sum);
+                    else
+                        sum = avx_traits<T>::add(
+                            sum, avx_traits<T>::mul(weight, source));
+#else
+                    sum = avx_traits<T>::add(
+                        sum, avx_traits<T>::mul(weight, source));
+#endif
                 }
-                avx2_traits<T>::store(
-                    output.data() + out_y * output_width + out_x, sum);
             }
+            avx_traits<T>::store(output.data() + out_y * output_width + out_x,
+                                 sum);
+        }
 
         for (std::size_t out_x{vector_limit}; out_x < output_width; out_x++)
         {
@@ -185,7 +182,7 @@ benchmark_case(std::size_t input_width)
     std::vector<T> kernel{make_kernel<T>()};
     auto [output, elapsed]{convolve_optimized(
         input, input_width, input_height, kernel, KERNEL_WIDTH, KERNEL_HEIGHT)};
-    benchmark_sink ^= checksum(std::move(output));
+    benchmark_sink ^= checksum(output);
     return elapsed;
 }
 
@@ -218,13 +215,15 @@ int main(int argc, char *argv[])
     else
     {
         std::cout << "Input width: " << input_width << std::endl;
-        std::cout << "CPU (with AVX2) time using " << TYPE_NAME(std::int16_t)
-                  << ": " << time_int16.count() << " ms" << std::endl;
-        std::cout << "CPU (with AVX2) time using " << TYPE_NAME(std::int32_t)
-                  << ": " << time_int32.count() << " ms" << std::endl;
-        std::cout << "CPU (with AVX2) time using " << TYPE_NAME(float) << ": "
-                  << time_float32.count() << " ms" << std::endl;
-        std::cout << "CPU (with AVX2) time using " << TYPE_NAME(double) << ": "
-                  << time_float64.count() << " ms" << std::endl;
+        std::cout << "CPU (with AVX2/AVX-512) time using "
+                  << TYPE_NAME(std::int16_t) << ": " << time_int16.count()
+                  << " ms" << std::endl;
+        std::cout << "CPU (with AVX2/AVX-512) time using "
+                  << TYPE_NAME(std::int32_t) << ": " << time_int32.count()
+                  << " ms" << std::endl;
+        std::cout << "CPU (with AVX2/AVX-512) time using " << TYPE_NAME(float)
+                  << ": " << time_float32.count() << " ms" << std::endl;
+        std::cout << "CPU (with AVX2/AVX-512) time using " << TYPE_NAME(double)
+                  << ": " << time_float64.count() << " ms" << std::endl;
     }
 }

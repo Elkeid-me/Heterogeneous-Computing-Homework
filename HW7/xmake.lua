@@ -13,7 +13,7 @@ target("convolution-cpu")
 target("convolution-cpu-optimized")
     set_kind("binary")
     add_intel_libs()
-    add_vectorexts("avx", "avx2")
+    add_vectorexts("avx2", "avx512")
     add_files("src/convolution-cpu-optimized.cxx", "src/utils.cxx")
 
 target("convolution-opencl")

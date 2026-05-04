@@ -183,7 +183,7 @@ DEFINE_TYPE_NAME(std::int32_t, "int32");
 DEFINE_TYPE_NAME(float, "float");
 DEFINE_TYPE_NAME(double, "double");
 DEFINE_TYPE_NAME(half_t, "half");
-#define TYPE_NAME(T) #T
+#define TYPE_NAME(T) type_name<T>::value
 
 template <typename T>
 std::uint64_t checksum(const std::vector<T> &values)
