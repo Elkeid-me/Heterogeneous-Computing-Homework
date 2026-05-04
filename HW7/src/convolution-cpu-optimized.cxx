@@ -21,7 +21,13 @@ T place_holder(T, T, T)
 template <typename T>
 struct avx_traits;
 
-#define DEFINE_AVX_TRAIT(TYPE, SUPPORT_MUL_ADD, VEC_TYPE, VEC_WIDTH,           \
+#ifdef __FMA__
+constexpr bool cpu_support_fma{true};
+#else
+constexpr bool cpu_support_fma{false};
+#endif
+
+#define DEFINE_AVX_TRAIT(TYPE, TYPE_SUPPORT_FMA, VEC_TYPE, VEC_WIDTH,          \
                          PTR_VAR_NAME, VAL_VAR_NAME, LOAD_EXPR, SETZERO, SET1, \
                          MUL, ADD, MUL_ADD, STORE_EXPR)                        \
     template <>                                                                \
@@ -49,17 +55,16 @@ struct avx_traits;
         static vector_type mul_add(vector_type a, vector_type b,               \
                                    vector_type c)                              \
         {                                                                      \
-            return MUL_ADD(a, b, c);                                           \
+            if constexpr (TYPE_SUPPORT_FMA && cpu_support_fma)                 \
+                return MUL_ADD(a, b, c);                                       \
+            else                                                               \
+                return add(mul(a, b), c);                                      \
         }                                                                      \
         static void store(TYPE *PTR_VAR_NAME, vector_type VAL_VAR_NAME)        \
         {                                                                      \
             STORE_EXPR;                                                        \
         }                                                                      \
-        static constexpr bool support_mul_add{SUPPORT_MUL_ADD};                \
     }
-
-#undef __AVX512F__
-#undef __AVX512BW__
 
 #ifdef __AVX512F__
 DEFINE_AVX_TRAIT(std::int32_t, false, __m512i, 512 / 32, ptr, value,
@@ -135,16 +140,7 @@ convolve_optimized(const std::vector<T> &input, const std::size_t input_width,
                     const typename avx_traits<T>::vector_type weight{
                         avx_traits<T>::set1(
                             kernel[kernel_y * kernel_width + kernel_x])};
-#ifdef __FMA__
-                    if constexpr (avx_traits<T>::support_mul_add)
-                        sum = avx_traits<T>::mul_add(weight, source, sum);
-                    else
-                        sum = avx_traits<T>::add(
-                            sum, avx_traits<T>::mul(weight, source));
-#else
-                    sum = avx_traits<T>::add(
-                        sum, avx_traits<T>::mul(weight, source));
-#endif
+                    sum = avx_traits<T>::mul_add(weight, source, sum);
                 }
             }
             avx_traits<T>::store(output.data() + out_y * output_width + out_x,
