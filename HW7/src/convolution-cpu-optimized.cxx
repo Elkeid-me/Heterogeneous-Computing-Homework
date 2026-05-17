@@ -1,10 +1,12 @@
 #include "utils.hxx"
 
 #include <charconv>
+#include <concepts>
 #include <cstddef>
 #include <cstring>
 #include <immintrin.h>
 #include <iostream>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -27,23 +29,28 @@ constexpr bool cpu_support_fma{true};
 constexpr bool cpu_support_fma{false};
 #endif
 
-#define DEFINE_AVX_TRAIT(TYPE, TYPE_SUPPORT_FMA, VEC_TYPE, VEC_WIDTH,          \
-                         PTR_VAR_NAME, VAL_VAR_NAME, LOAD_EXPR, SETZERO, SET1, \
-                         MUL, ADD, MUL_ADD, STORE_EXPR)                        \
+#define DEFINE_AVX_TRAIT(TYPE, VEC_TYPE, LOAD, SETZERO, SET1, MUL, ADD,        \
+                         MUL_ADD, STORE)                                       \
     template <>                                                                \
     struct avx_traits<TYPE>                                                    \
     {                                                                          \
         using vector_type = VEC_TYPE;                                          \
-        static constexpr std::size_t vector_width{VEC_WIDTH};                  \
-        static vector_type load(const TYPE *PTR_VAR_NAME)                      \
+        static constexpr bool type_support_fma{                                \
+            std::is_floating_point_v<TYPE>};                                   \
+        static constexpr std::size_t vector_width{sizeof(VEC_TYPE) /           \
+                                                  sizeof(TYPE)};               \
+        template <std::integral U = TYPE>                                      \
+        static vector_type load(const U *ptr)                                  \
         {                                                                      \
-            return LOAD_EXPR;                                                  \
+            return LOAD(reinterpret_cast<const vector_type *>(ptr));           \
+        }                                                                      \
+        template <std::floating_point U = TYPE>                                \
+        static vector_type load(const U *ptr)                                  \
+        {                                                                      \
+            return LOAD(ptr);                                                  \
         }                                                                      \
         static vector_type setzero() { return SETZERO(); }                     \
-        static vector_type set1(TYPE VAL_VAR_NAME)                             \
-        {                                                                      \
-            return SET1(VAL_VAR_NAME);                                         \
-        }                                                                      \
+        static vector_type set1(TYPE val) { return SET1(val); }                \
         static vector_type mul(vector_type a, vector_type b)                   \
         {                                                                      \
             return MUL(a, b);                                                  \
@@ -55,57 +62,53 @@ constexpr bool cpu_support_fma{false};
         static vector_type mul_add(vector_type a, vector_type b,               \
                                    vector_type c)                              \
         {                                                                      \
-            if constexpr (TYPE_SUPPORT_FMA && cpu_support_fma)                 \
+            if constexpr (type_support_fma && cpu_support_fma)                 \
                 return MUL_ADD(a, b, c);                                       \
             else                                                               \
                 return add(mul(a, b), c);                                      \
         }                                                                      \
-        static void store(TYPE *PTR_VAR_NAME, vector_type VAL_VAR_NAME)        \
+        template <std::integral U = TYPE>                                      \
+        static void store(U *ptr, vector_type val)                             \
         {                                                                      \
-            STORE_EXPR;                                                        \
+            STORE(reinterpret_cast<vector_type *>(ptr), val);                  \
+        }                                                                      \
+        template <std::floating_point U = TYPE>                                \
+        static void store(U *ptr, vector_type val)                             \
+        {                                                                      \
+            STORE(ptr, val);                                                   \
         }                                                                      \
     }
 
 #ifdef __AVX512F__
-DEFINE_AVX_TRAIT(std::int32_t, false, __m512i, 512 / 32, ptr, value,
-                 _mm512_loadu_si512(ptr), _mm512_setzero_si512,
-                 _mm512_set1_epi32, _mm512_mullo_epi32, _mm512_add_epi32,
-                 place_holder, _mm512_storeu_si512(ptr, value));
-DEFINE_AVX_TRAIT(float, true, __m512, 512 / 32, ptr, value,
-                 _mm512_loadu_ps(ptr), _mm512_setzero_ps, _mm512_set1_ps,
-                 _mm512_mul_ps, _mm512_add_ps, _mm512_fmadd_ps,
-                 _mm512_storeu_ps(ptr, value));
-DEFINE_AVX_TRAIT(double, true, __m512d, 512 / 64, ptr, value,
-                 _mm512_loadu_pd(ptr), _mm512_setzero_pd, _mm512_set1_pd,
-                 _mm512_mul_pd, _mm512_add_pd, _mm512_fmadd_pd,
-                 _mm512_storeu_pd(ptr, value));
+DEFINE_AVX_TRAIT(std::int32_t, __m512i, _mm512_loadu_si512,
+                 _mm512_setzero_si512, _mm512_set1_epi32, _mm512_mullo_epi32,
+                 _mm512_add_epi32, place_holder, _mm512_storeu_si512);
+DEFINE_AVX_TRAIT(float, __m512, _mm512_loadu_ps, _mm512_setzero_ps,
+                 _mm512_set1_ps, _mm512_mul_ps, _mm512_add_ps, _mm512_fmadd_ps,
+                 _mm512_storeu_ps);
+DEFINE_AVX_TRAIT(double, __m512d, _mm512_loadu_pd, _mm512_setzero_pd,
+                 _mm512_set1_pd, _mm512_mul_pd, _mm512_add_pd, _mm512_fmadd_pd,
+                 _mm512_storeu_pd);
 #else
-DEFINE_AVX_TRAIT(std::int32_t, false, __m256i, 256 / 32, ptr, value,
-                 _mm256_loadu_si256(reinterpret_cast<const __m256i *>(ptr)),
+DEFINE_AVX_TRAIT(std::int32_t, __m256i, _mm256_loadu_si256,
                  _mm256_setzero_si256, _mm256_set1_epi32, _mm256_mullo_epi32,
-                 _mm256_add_epi32, place_holder,
-                 _mm256_storeu_si256(reinterpret_cast<__m256i *>(ptr), value));
-DEFINE_AVX_TRAIT(float, true, __m256, 256 / 32, ptr, value,
-                 _mm256_loadu_ps(ptr), _mm256_setzero_ps, _mm256_set1_ps,
-                 _mm256_mul_ps, _mm256_add_ps, _mm256_fmadd_ps,
-                 _mm256_storeu_ps(ptr, value));
-DEFINE_AVX_TRAIT(double, true, __m256d, 256 / 64, ptr, value,
-                 _mm256_loadu_pd(ptr), _mm256_setzero_pd, _mm256_set1_pd,
-                 _mm256_mul_pd, _mm256_add_pd, _mm256_fmadd_pd,
-                 _mm256_storeu_pd(ptr, value));
+                 _mm256_add_epi32, place_holder, _mm256_storeu_si256);
+DEFINE_AVX_TRAIT(float, __m256, _mm256_loadu_ps, _mm256_setzero_ps,
+                 _mm256_set1_ps, _mm256_mul_ps, _mm256_add_ps, _mm256_fmadd_ps,
+                 _mm256_storeu_ps);
+DEFINE_AVX_TRAIT(double, __m256d, _mm256_loadu_pd, _mm256_setzero_pd,
+                 _mm256_set1_pd, _mm256_mul_pd, _mm256_add_pd, _mm256_fmadd_pd,
+                 _mm256_storeu_pd);
 #endif
 
 #ifdef __AVX512BW__
-DEFINE_AVX_TRAIT(std::int16_t, false, __m512i, 512 / 16, ptr, value,
-                 _mm512_loadu_si512(ptr), _mm512_setzero_si512,
-                 _mm512_set1_epi16, _mm512_mullo_epi16, _mm512_add_epi16,
-                 place_holder, _mm512_storeu_si512(ptr, value));
+DEFINE_AVX_TRAIT(std::int16_t, __m512i, _mm512_loadu_si512,
+                 _mm512_setzero_si512, _mm512_set1_epi16, _mm512_mullo_epi16,
+                 _mm512_add_epi16, place_holder, _mm512_storeu_si512);
 #else
-DEFINE_AVX_TRAIT(std::int16_t, false, __m256i, 256 / 16, ptr, value,
-                 _mm256_loadu_si256(reinterpret_cast<const __m256i *>(ptr)),
+DEFINE_AVX_TRAIT(std::int16_t, __m256i, _mm256_loadu_si256,
                  _mm256_setzero_si256, _mm256_set1_epi16, _mm256_mullo_epi16,
-                 _mm256_add_epi16, place_holder,
-                 _mm256_storeu_si256(reinterpret_cast<__m256i *>(ptr), value));
+                 _mm256_add_epi16, place_holder, _mm256_storeu_si256);
 #endif
 
 template <typename T>
