@@ -1,13 +1,15 @@
+__pycache__/
 .cache/
 .venv/
 .vscode/
 .xmake/
 bin/
 build/
-obj/
-__pycache__/
 datasets/
+obj/
+
 *.7z
+*.bin
 *.bmp
 *.csv
 *.dll
@@ -17,6 +19,7 @@ datasets/
 *.pdf
 *.png
 *.pth
+
 .python-version
 compile_commands.json
 Rotate.deps.json
