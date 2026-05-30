@@ -1,10 +1,12 @@
 .cache/
+.venv/
 .vscode/
 .xmake/
 bin/
 build/
 obj/
-.fake
+__pycache__/
+datasets/
 *.7z
 *.bmp
 *.csv
@@ -14,6 +16,11 @@ obj/
 *.pdb
 *.pdf
 *.png
+*.pth
+.python-version
 compile_commands.json
 Rotate.deps.json
 Rotate.runtimeconfig.json
+uv.lock
+
+LeNet5/lenet5_weights.hxx

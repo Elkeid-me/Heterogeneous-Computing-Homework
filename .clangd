@@ -1,2 +1,5 @@
+If:
+  PathMatch: [.*\.hxx, .*\.cxx]
+  PathExclude: LeNet5/.*
 CompileFlags:
-  Add: [ --driver-mode=cl ]
+  Add: [ --driver-mode=cl]
