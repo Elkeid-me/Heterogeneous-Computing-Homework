@@ -27,3 +27,4 @@ Rotate.runtimeconfig.json
 uv.lock
 
 LeNet5/lenet5_weights.hxx
+LeNet5/doc/media/
