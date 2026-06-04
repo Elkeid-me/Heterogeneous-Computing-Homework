@@ -8,6 +8,20 @@
 #include <string>
 #include <vector>
 
+extern "C"
+{
+    int a = 0;
+    void _reset_vector(void);
+    void c_trap_handler(int cause, int epc, int tval)
+    {
+        if (a == 0)
+        {
+            a = 1;
+            printf("trap: cause=%x, epc=%x, tval=%x\n", cause, epc, tval);
+        }
+    }
+}
+
 template <std::size_t... Extents>
 using float_mdspan = std::mdspan<float, std::extents<std::size_t, Extents...>>;
 template <std::size_t... Extents>
@@ -149,16 +163,16 @@ int main(int argc, char *argv[])
                   "This code assumes little-endian architecture.");
     if (argc != 2 && argc != 3)
     {
-        std::cerr << "Usage: " << argv[0] << " <input_file> <img_index>"
+        std::cout << "Usage: " << "lenet5" << " <input_file> <img_index>"
                   << std::endl;
-        return EXIT_FAILURE;
+        return 0;
     }
     std::ifstream input_file(argv[1],
                              std::ios_base::in | std::ios_base::binary);
     if (!input_file)
     {
-        std::cerr << "Error: Could not open input file." << std::endl;
-        return EXIT_FAILURE;
+        std::cout << "Error: Could not open input file." << std::endl;
+        return 0;
     }
     auto input{std::make_unique<float[]>(32 * 32)};
     input_file.seekg(argc == 3 ? std::stoul(argv[2]) * 32 * 32 * sizeof(float)
