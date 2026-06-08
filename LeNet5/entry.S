@@ -50,7 +50,7 @@ trap_handler:
 .globl _reset_vector
 .type _reset_vector, @function
 _reset_vector:
-    li   t0, 0x00006000
+    li   t0, 0x00006c00
     csrs mstatus, t0
     la   t0, trap_handler
     csrw mtvec, t0

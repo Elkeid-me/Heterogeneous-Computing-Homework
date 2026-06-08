@@ -11,17 +11,9 @@ void c_trap_handler(int cause, int epc, int tval)
     }
 }
 
-// int lenet5(const float *input);
-
 void lenet5_conv1(const float *);
 
 int main(void)
 {
     lenet5_conv1(test_data);
-    for (size_t i = 0; i < 6; i++)
-    {
-        for (size_t j = 0; j < 784; j++)
-            printf("%f, ", conv1_output[i * 784 + j]);
-        printf("\n");
-    }
 }

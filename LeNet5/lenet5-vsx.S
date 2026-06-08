@@ -8,73 +8,64 @@
 .align 2
 .globl lenet5_conv1
 .type lenet5_conv1, @function
-// a0 is test_data
 lenet5_conv1:
     li t0, 784
-    li t1, 6
-    li t2, 25
-
-    li t3, 0
+    li t2, 25   // const
+    li t3, 784  // const
+    la t4, conv1_kernel_bias
+    la t5, test_data_index
+    la t6, conv1_kernel_column_first
+    la a1, conv1_output
     j  test_784
 loop_784:
-    sub t0, t0, t3
-    vsetvli t4, t0, e32, m1
-    add t0, t0, t3
-    li t5, 0
+    vsetvli a2, t0, e32, m1
+    li t1, 6
     j test_6
 loop_6:
-    sub t1, t1, t5
-    VSX_SETVSX(__T6, __T1, 8, __IS_FLOAT)
-    add t1, t1, t5
-    la   a1, conv1_kernel_bias
-    slli a2, t3, 2
-    add  a1, a1, a2
-    li   a2, 3136
-    mul  a2, a2, t5
-    add  a1, a1, a2
+    VSX_SETVSX(__A3, __T1, 8, __IS_FLOAT)
 
-    li   a2, 784
-    VSX_LT(__ACC8_0, __A1, __A2)
-
-    li   a3, 0
-    j    test_25
+    VSX_LT(__ACC8_0, __T4, __T3)
+    li  a4, 0
+    j   test_25
 loop_25:
-    la   a1, test_data_index
-    slli a2, t3, 2
-    add  a1, a1, a2
-    li   a2, 3136
-    mul  a2, a2, a3
-    add  a1, a1, a2
-    VSX_LE32_V(__VSX8, __A1, 0)
+    li  a6, 3136
+    mul a6, a4, a6
+    mv  a5, t5
+    add a6, a5, a6
+    VSX_LE32_V(__VSX8, __A6, 0)
     VSX_LGE32_V(__VSX9, __A0, __VSX8)
-
-    la   a1, conv1_kernel_column_first
-    slli a2, t3, 2
-    add  a1, a1, a2
-    li   a2, 24
-    mul  a2, a2, a3
-    add  a1, a1, a2
-    VSX_LETH32_V(__VSX32, __A1, 0)
+    li  a6, 24
+    mul a6, a6, a4
+    mv  a5, t6
+    add a6, a5, a6
+    VSX_LETH32_V(__VSX32, __A6, 0)
     VSX_TMULA(__ACC8_0, __VSX9, __VSX32)
-    addi a3, a3, 1
+    addi a4, a4, 1
 test_25:
-    blt  a3, t2, loop_25
-    la   a1, conv1_output
-    slli a2, t3, 2
-    add  a1, a1, a2
-    li   a2, 3136
-    mul  a2, a2, t5
-    add  a1, a1, a2
-    li   a2, 784
-    VSX_ST(__ACC8_0, __A1, __A2)
+    blt  a4, t2, loop_25
+    VSX_ST(__ACC8_0, __A1, __T3)
 
-    add  t5, t5, t6
+    sub  t1, t1, a3
+    slli a3, a3, 2
+    add  t6, t6, a3
+    mul  a3, a3, t3
+    add  t4, t4, a3
+    add  a1, a1, a3
 test_6:
-    blt  t5, t1, loop_6
+    bgtz t1, loop_6
 
-    add  t3, t3, t4
+    sub  t0, t0, a2
+    slli a2, a2, 2
+    add  t4, t4, a2
+    add  t5, t5, a2
+    add  a1, a1, a2
+
+    la  t6, conv1_kernel_column_first
+    li  a4, 18816
+    sub t4, t4, a4
+    sub a1, a1, a4
 test_784:
-    blt  t3, t0, loop_784
+    bgtz t0, loop_784
     ret
 
 .align 2
