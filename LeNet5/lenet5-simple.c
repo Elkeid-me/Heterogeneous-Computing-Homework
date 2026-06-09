@@ -1,6 +1,8 @@
 #include "lenet5_weights.h"
 #include <stdio.h>
 
+float conv1_output[4704];
+
 void c_trap_handler(int cause, int epc, int tval)
 {
     static int count = 0;
@@ -33,7 +35,8 @@ int main(void)
                                test_data[input_i * 32 + input_j];
                     }
                 }
-                conv1_output[channel * 784 + image_i * 28 + image_j] = (0.0f > sum ? 0.0f : sum);
+                conv1_output[channel * 784 + image_i * 28 + image_j] =
+                    (0.0f > sum ? 0.0f : sum);
             }
         }
     }

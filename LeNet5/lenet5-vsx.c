@@ -1,6 +1,8 @@
 #include "lenet5_weights.h"
 #include <stdio.h>
 
+float conv1_output[4704];
+
 void c_trap_handler(int cause, int epc, int tval)
 {
     static int count = 0;

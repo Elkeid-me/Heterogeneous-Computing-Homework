@@ -323,6 +323,9 @@
 
 #define VSX_TBRD(AD, VS) VSX_R_TYPE((AD & 0x1F), VS, 0, 2, 24)
 
+#define VSX_STRELU(AD, RS1, RS2)                                                   \
+    VSX_R_TYPE(((AD & 0x1F) | 0x20), (RS1 & 0x1F), (RS2 & 0x1F), 3, 24)
+
 #define VSX_SETVSX(RD, RS, IMM, IS_FLOAT)                                      \
     VSX_R_TYPE((RD & 0x1F), (RS & 0x1F), (IMM | IS_FLOAT), 0, 25)
 #define VSX_MOV_VX(VD, RS) VSX_R_TYPE(VD, RS, 0, 0, 25)
