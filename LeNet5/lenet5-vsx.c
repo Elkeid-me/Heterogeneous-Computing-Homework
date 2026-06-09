@@ -1,4 +1,4 @@
-#include "lenet5_weights.h"
+#include "lenet5-vsx.inc"
 #include <stdio.h>
 
 float conv1_output[4704];
