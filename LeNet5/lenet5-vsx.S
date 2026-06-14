@@ -16,18 +16,18 @@ lenet5_conv1:
     la t5, test_data_index
     la t6, conv1_kernel_column_first
     la a1, conv1_output
-    j  .test_784
-.loop_784:
+    j  .Ltest_784
+.Lloop_784:
     vsetvli a2, t0, e32, m1
     li t1, 6
-    j .test_6
-.loop_6:
+    j .Ltest_6
+.Lloop_6:
     VSX_SETVSX(__A3, __T1, 8, __IS_FLOAT)
 
     VSX_LT(__ACC8_0, __T4, __T3)
     li  a4, 0
-    j   .test_25
-.loop_25:
+    j   .Ltest_25
+.Lloop_25:
     li  a6, 3136
     mul a6, a4, a6
     mv  a5, t5
@@ -41,8 +41,8 @@ lenet5_conv1:
     VSX_LETH32_V(__VSX32, __A6, 0)
     VSX_TMULA(__ACC8_0, __VSX9, __VSX32)
     addi a4, a4, 1
-.test_25:
-    blt  a4, t2, .loop_25
+.Ltest_25:
+    blt  a4, t2, .Lloop_25
     VSX_STRELU(__ACC8_0, __A1, __T3)
 
     sub  t1, t1, a3
@@ -51,8 +51,8 @@ lenet5_conv1:
     mul  a3, a3, t3
     add  t4, t4, a3
     add  a1, a1, a3
-.test_6:
-    bgtz t1, .loop_6
+.Ltest_6:
+    bgtz t1, .Lloop_6
 
     sub  t0, t0, a2
     slli a2, a2, 2
@@ -64,8 +64,8 @@ lenet5_conv1:
     li  a4, 18816
     sub t4, t4, a4
     sub a1, a1, a4
-.test_784:
-    bgtz t0, .loop_784
+.Ltest_784:
+    bgtz t0, .Lloop_784
     ret
 
 .align 2
